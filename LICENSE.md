@@ -1,4 +1,4 @@
-The ResourceBundle.jl package is licensed under the MIT "Expat" License:
+The ResourceBundleis.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2017: Klaus Crusius.
 >
