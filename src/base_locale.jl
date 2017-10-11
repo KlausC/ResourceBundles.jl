@@ -1,9 +1,15 @@
+module Locales
+
+export Locale
+export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
+        SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
+export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
 
 import Base: ==, hash
 """
 https://tools.ietf.org/html/bcp47
 """
-struct BaseLocale
+struct Locale
     language::Symbol
     script::Symbol
     region::Symbol
@@ -17,14 +23,14 @@ const ExtensionDict = Dict{Char,VariantVector}
 const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, ExtensionDict}
 
 """
-    return BaseLocale object
+    return Locale object from cache or create new one and register in cache.
 """
-BaseLocale(langtag::AS) = BaseLocale(splitlangtag(langtag)...)
-BaseLocale(lang::AS, region::AS) = BaseLocale(lang, "", region, "", "", "")
-BaseLocale(lang::AS, region::AS, variant::AS) = BaseLocale(lang, "", region, variant, "")
-BaseLocale(lang::AS, script::AS, region::AS, variant::AS) = BaseLocale(lang, script, region, variant, "")
+Locale(langtag::AS) = Locale(splitlangtag(langtag)...)
+Locale(lang::AS, region::AS) = Locale(lang, "", region, "", "")
+Locale(lang::AS, region::AS, variant::AS) = Locale(lang, "", region, variant, "")
+Locale(lang::AS, script::AS, region::AS, variant::AS) = Locale(lang, script, region, variant, "")
 
-function BaseLocale(language::AS, script::AS, region::AS, variant::AS, extension::AS)
+function Locale(language::AS, script::AS, region::AS, variant::AS, extension::AS)
     lang = check_language(language)
     scri = check_script(script)
     regi = check_region(region)
@@ -32,7 +38,7 @@ function BaseLocale(language::AS, script::AS, region::AS, variant::AS, extension
     exte = check_extension(extension)
     key = tuple(lang, scri, regi, vari, exte)
     get!(CACHE, key) do
-       BaseLocale(key...)
+       Locale(key...)
     end
 end
 
@@ -217,7 +223,7 @@ function is_alnumsep(x::AS)
     true
 end 
 
-function ==(x::BaseLocale, y::BaseLocale)
+function ==(x::Locale, y::Locale)
     x === y && return true
     x.language == y.language &&
     x.script == y.script &&
@@ -226,14 +232,14 @@ function ==(x::BaseLocale, y::BaseLocale)
     x.extensions == y.extensions
 end
 
-function hash(x::BaseLocale, h::Int)
+function hash(x::Locale, h::Int)
     hash(x.extensions, hash(x.variants, hash(x.region, hash(x.script, hash(x.language, h)))))
 end
 
 
-function Base.show(io::IO, x::BaseLocale)
+function Base.show(io::IO, x::Locale)
     ES = Symbol("")
-    SEP = "_"
+    SEP = "-"
     sep = ""
     x.language !== ES && ( print(io, x.language); sep = SEP )
     x.script != ES &&  ( print(io, sep, x.script); sep = SEP )
@@ -251,5 +257,76 @@ function Base.show(io::IO, x::BaseLocale)
     end
 end
 
-const CACHE = Dict{Key, BaseLocale}()
+const CACHE = Dict{Key, Locale}()
 
+    # Useful constant for language.
+    const ENGLISH = Locale("en", "");
+
+    # Useful constant for language.
+    const FRENCH = Locale("fr", "");
+
+    # Useful constant for language.
+    const GERMAN = Locale("de", "");
+
+    # Useful constant for language.
+    const ITALIAN = Locale("it", "");
+
+    # Useful constant for language.
+    const JAPANESE = Locale("ja", "");
+
+    # Useful constant for language.
+    const KOREAN = Locale("ko", "");
+
+    # Useful constant for language.
+    const CHINESE = Locale("zh", "");
+
+    # Useful constant for language.
+    const SIMPLIFIED_CHINESE = Locale("zh", "CN");
+
+    # Useful constant for language.
+    const TRADITIONAL_CHINESE = Locale("zh", "TW");
+
+    # Useful constant for country.
+    const FRANCE = Locale("fr", "FR");
+
+    # Useful constant for country.
+    const GERMANY = Locale("de", "DE");
+
+    # Useful constant for country.
+    const ITALY = Locale("it", "IT");
+
+    # Useful constant for country.
+    const JAPAN = Locale("ja", "JP");
+
+    # Useful constant for country.
+    const KOREA = Locale("ko", "KR");
+
+    # Useful constant for country.
+    const CHINA = SIMPLIFIED_CHINESE;
+
+    # Useful constant for country.
+    const PRC = SIMPLIFIED_CHINESE;
+
+    # Useful constant for country.
+    const TAIWAN = TRADITIONAL_CHINESE;
+
+    # Useful constant for country.
+    const UK = Locale("en", "GB");
+
+    # Useful constant for country.
+    const US = Locale("en", "US");
+
+    # Useful constant for country.
+    const CANADA = Locale("en", "CA");
+
+    """
+     * Useful constant for the root locale.  The root locale is the locale whose
+     * language, country, and variant are empty ("") strings.  This is regarded
+     * as the base locale of all locales, and is used as the language/country
+     * neutral locale for the locale sensitive operations.
+     *
+     * @since 1.6
+    """
+const ROOT = Locale("", "");
+
+end # module Locales

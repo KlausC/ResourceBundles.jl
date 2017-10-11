@@ -3,27 +3,22 @@ module ResourceBundles
 export ResourceBundle, PropertyResourceBundle, ListResourceBundle
 export get_locale, set_locale!, get_String
 
-export Locale
+export Locales, Locale
+export ParserCombinator
 
 include("locale_iso_data.jl")
 include("base_locale.jl")
+include("parser_combinator.jl")
+include("parse_langtag.jl")
 
+const Locale = Locales.Locale
 
 abstract type AbstractResourceBundle end
 
-struct Locale
-    language::String
-    script::String
-    region::String
-    variant::Vector{String}
-    extension::Dict{Char,String}
-end
-
-const DEFAULT_LOCALE = Locale("", "", "", String[], Dict{Char,String}())
-
+const DEFAULT_LOCALE = Locales.ROOT
 const CURRENT_LOCALE = DEFAULT_LOCALE
 
-set_locale!(loc::Locale) = CURRENT_LOCALE = loc
+set_locale!(loc::Locales.Locale) = CURRENT_LOCALE = loc
 get_locale() = CURRENT_LOCALE
 
 struct PropertyResourceBundle <: AbstractResourceBundle
@@ -52,7 +47,4 @@ function get_ListResourceBundle(loc::Union{Locale,Void}, name::String...)
     path = Pkg.Dir.path(name...)
 end
 
-
-
-
-end # module
+end # module ResourceBundles
