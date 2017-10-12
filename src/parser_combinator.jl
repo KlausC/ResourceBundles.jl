@@ -6,11 +6,12 @@ module ParserCombinator
 
 export Input, ParseResult, Parser, Success, Failure
 export apply, opt, rep, repsep, success, failure
+export copy_state, set_state!
 export token_parser
 
 export TokenList, example
 
-import Base:  %, <<, >>, >>>, |, copy, eof, next
+import Base:  %, <<, >>, >>>, |, eof, next
 
 """
     `Input` is a reader providing tokens of type `Element`
@@ -18,8 +19,9 @@ import Base:  %, <<, >>, >>>, |, copy, eof, next
 abstract type Input end
 
 eof(x::Input) = true
-copy(x::Input) = error("`copy` not implemented for type $(typeof(x))")
 next(x::Input) = error("`next` not implemented for type $(typeof(x))")
+copy_state(x::Input) = error("`copy_state` not implemented for type $(typeof(x))")
+set_state!(x::Input, s::Any) = error("`set_state!` not implemented for type $(typeof(x))")
 
 """
     `ParseResult` is either success or failure.
@@ -29,21 +31,24 @@ abstract type ParseResult{T} end
 struct Success{T} <: ParseResult{T}
     result::T
     inp::Input
-    Success{T}(r::T, inp::Input) where T = new(r, copy(inp))
+    Success{T}(r::T, inp::Input) where T = new(r, inp)
 end
 Success(r::T, inp::Input) where T = Success{T}(r, inp)
 
 struct Failure <: ParseResult{Void}
     msg::String
     inp::Input
-    Failure(m::String, inp::Input) = new(m, copy(inp))
+    Failure(m::String, inp::Input) = new(m, inp)
 end
 
 """
     The parser maps an input to a parse result.
+    The parser generators create a parser from elementary parts.
 """
 abstract type Parser end
-
+"""
+    Apply a parser to the given input and produce a success result or a failure message.
+"""
 apply(p::Parser, inp::Input) = Failure("apply not implemented for type $(typeof(p))", inp)
 
 const ValueOrName{T} = Union{T, Tuple{Function,T}}
@@ -260,16 +265,17 @@ struct ParserToken <: Parser
 end
 
 function apply(p::ParserToken, inp::Input)::ParseResult
-    in2 = copy(inp)
+    state = copy_state(inp)
     if !eof(inp)
         s = next(inp)
         if p.low <= length(s) <= p.high && p.check(s) 
             Success(s, inp)
         else
-            Failure("not well formed '$s'", in2)
+            set_state!(inp, state)
+            Failure("not well formed '$s'", inp)
         end
     else
-        Failure("end of input", in2)
+        Failure("end of input", inp)
     end
 end
 
@@ -279,11 +285,15 @@ mutable struct TokenList <: Input
     pos::Int
     data::Vector{AbstractString}
 end
-TokenList(x::AbstractString) = TokenList(0, x)
+function TokenList(x::Any)
+    pos = start(x)
+    TokenList(pos, x)
+end
 
-eof(inp::TokenList) = inp.pos >= endof(inp.data)
-next(inp::TokenList) = begin inp.pos = nextind(inp.data, inp.pos); inp.data[inp.pos] end
-copy(x::TokenList) = TokenList(x.pos, x.data)
+eof(inp::TokenList) = done(inp.data, inp.pos)
+next(inp::TokenList) = begin item, inp.pos = next(inp.data, inp.pos); item end
+copy_state(inp::TokenList) = copy(inp.pos)
+set_state!(inp::TokenList, x::Any) = begin inp.pos = x end
 
 function example()
     s13 = token_parser(x->!isempty(x), 1, 3)
