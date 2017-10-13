@@ -4,10 +4,11 @@
 module ParserCombinator
 
 
-export Input, ParseResult, Parser, Success, Failure
-export apply, opt, rep, repsep, success, failure
+export Input, ParseResult, Parser, Success, Failure, EOF
+export apply, opt, rep, repsep, succeed, fail
 export copy_state, set_state!
 export token_parser
+export ParserSeq, ParserAlt, ParserToken, ParserLiteral, ParserRegex
 
 export TokenList, example
 
@@ -51,7 +52,8 @@ abstract type Parser end
 """
 apply(p::Parser, inp::Input) = Failure("apply not implemented for type $(typeof(p))", inp)
 
-const ValueOrName{T} = Union{T, Tuple{Function,T}}
+const DelayedFunction{T} = Tuple{Function,T} # Function must have return type T
+const ValueOrName = Union{Parser,DelayedFunction{Parser}}
 
 """
     `p % f`
@@ -59,7 +61,7 @@ const ValueOrName{T} = Union{T, Tuple{Function,T}}
     Generate sequencing parser, which accepts `p` followed by `q`.
     Result is a tuple with the results of `p` and `q`.
 """
-%(p::Parser, q::Parser) = ParserSeq(p, q)
+%(p::Parser, q::Parser) = ParserSeq(p, [q])
 
 """
     `p % (f, q)`
@@ -68,26 +70,46 @@ const ValueOrName{T} = Union{T, Tuple{Function,T}}
     Result is a tuple with the results of `p` and `q`.
     This variant is useful to break recurring loops if `f` is involved in production.
 """
-%(p::Parser, pf::Tuple{Function,Parser}) = ParserSeq(p, pf)
+%(p::Parser, pf::ValueOrName) = ParserSeq(p, pf)
 
 struct ParserSeq <: Parser
     p::Parser
-    q::ValueOrName{Parser}
+    qlist::Vector{ValueOrName}
 end
+ParserSeq(p::Parser, qa::ValueOrName...) = ParserSeq(p, qa)
 
-function apply(pseq::ParserSeq, inp::Input)::ParseResult
+%(p::ParserSeq, qf::ValueOrName) = begin push!(p.qlist, qf); p end
+%(p::ParserSeq, q::Parser) = begin push!(p.qlist, q); p end
+
+function apply(pseq::ParserSeq, inp::Input)
+    state = copy_state(inp)
+    n = length(pseq.qlist) + 1
+    i = 0
+    res = []
+    sizehint!(res, n)
     s = apply(pseq.p, inp)
     if isa(s, Success)
-        t = apply(callp(pseq.q), s.inp)
-        if isa(t, Success)
-            Success((s.result, t.result), t.inp)
-        else
-            t
+        push!(res, s.result)
+        for q in pseq.qlist
+            s = apply(parser(q), inp)
+            if isa(s, Success)
+                push!(res, s.result)
+            else
+                break
+            end
         end
+    end
+    if length(res) == n
+        R = promote_type(typeof.(res)...)
+        res = Vector{R}(res)
+        Success(res, inp)
     else
-        s
+        fstate = inp.state
+        set_state!(inp, state)
+        Failure("incomplete sequence at $fstate", inp)
     end
 end
+
 
 """
     `p >> q`
@@ -117,10 +139,10 @@ end
     Otherwise try `f(q)` and return result that. `f` is a function returning a parser.
     This variant is useful to break recurring loops if `f` is involved in production.
 """
-|(p::Parser, pf::Tuple{Function,Parser}) = ParserAlt(p, pf)
+|(p::Parser, q::DelayedFunction{Parser}) = ParserAlt(p, q)
 struct ParserAlt <: Parser
     p::Parser
-    q::ValueOrName{Parser}
+    q::ValueOrName
 end
 
 function apply(palt::ParserAlt, inp::Input)::ParseResult
@@ -128,7 +150,7 @@ function apply(palt::ParserAlt, inp::Input)::ParseResult
     if isa(s, Success)
         s
     else
-        apply(callp(palt.q), s.inp)
+        apply(parser(palt.q), s.inp)
     end
 end
 
@@ -139,10 +161,10 @@ end
     Result is `Success(f(x), inp)` when `x` is the result of `p` when successful.
     Result is failure result of `p` if not successful.
 """
->>>(p::Parser, f::Function) = ParserConv(p, f)
+>>>(p::Parser, f::Union{Function,Type}) = ParserConv(p, f)
 struct ParserConv <: Parser
     p::Parser
-    f::Function
+    f::Union{Function,Type}
 end
 
 function apply(pconv::ParserConv, inp::Input)::ParseResult
@@ -170,18 +192,20 @@ end
 function apply(p::ParserRep, inp::Input)
     i = 0
     res = []
+    sizehint!(res, max(p.low, min(p.hi, 8)))
     while i < p.hi
         s = apply(p.p, inp)
         if isa(s, Success)
             i += 1
             push!(res, s.result)
         else
-            inp = s.inp
             break
         end
     end
 
     if i >= p.low
+        R = promote_type(typeof.(res)...)
+        res = Vector{R}(res)
         Success(res, inp)
     else
         Failure("only $i repetitions, but $(p.low) required", inp)
@@ -194,7 +218,7 @@ end
     Parser accepting same as `p` or empty input.
     Result same as `p` if `p` was successful, otherwise `Success(nothing, inp)`.
 """
-opt(p::Parser) = rep(p, 0, 1) >>> (x->isempty(x) ? nothing : length(x) == 1 ? x[1] : x)
+opt(p::Parser) = rep(p, 0, 1)
 """
     `rep(p::Parser)::Parser`
 
@@ -208,7 +232,7 @@ rep(p::Parser) = rep(p, 0, INF)
     Repetitions of `p`, which are separated by `q`. For example: `p q p q p` ).
     Result is vector of results of the various `p`.
 """
-repsep(p::Parser, q::Parser) = p % rep(q >> p, 0, INF) >>> tupvec
+repsep(p::Parser, q::Parser) = p % rep(q >> p, 0, INF)
 
 """
     `EOF::Parser`
@@ -221,50 +245,44 @@ const EOF = ParserEof()
 apply(p::ParserEof, inp::Input) = eof(inp) ? Success(Void, inp) : Failure("missing eof", inp)
 
 """
-    `success(v::Any)::Parser`
+    `succeed(v::Any)::Parser`
 
     Parser always resulting in success, does not consume any input.
     Result is `v`.
 """
-success(v) = ParserSuccess(v)
+succeed(v) = ParserSuccess(v)
 struct ParserSuccess <: Parser
     v::Any
 end
 apply(p::ParserSuccess, inp::Input) = Success(p.v, inp)
 
 """
-    `failure(msg::AbstractString)::Parser`
+    `fail(msg::AbstractString)::Parser`
 
     Parser always resulting in failure, does not consume any input.
     Result is `Failure(msg, input)`.
 """
-failure(msg::AbstractString) = ParserFailure(msg)
+fail(msg::AbstractString) = ParserFailure(msg)
 struct ParserFailure
     msg::AbstractString
 end
 apply(p::ParserFailure, inp::Input) = Failure(p.msg, inp)
 
 # call-by-value
-callp(x::Parser) = x
+parser(x::Parser) = x
 # simulate call-by-name
-callp(t::ValueOrName{Parser}) = t[1](t[2])
+parser(t::ValueOrName) = t[1](t[2])
 
 const INF = typemax(Int)
 
-# convert tuple of value and vector into new vector
-tupvec(t::Tuple{T,Vector{S}}) where {S,T} = [t[1]; t[2]]
-tupvec(t::Tuple{T,S}) where {S,T} = [t[1]; t[2]]
-tupvec(t::Tuple{T,Void}) where {T} = t[1]
-tupvec(t::Tuple{Void,T}) where {T} = t[2]
-
-token_parser(check::Function, low::Int, high::Int) = ParserToken(check, low, high)
-struct ParserToken <: Parser
+token_parser(check::Function, low::Int, high::Int) = ParserPredicate(check, low, high)
+struct ParserPredicate <: Parser
     check::Function
     low::Int
     high::Int
 end
 
-function apply(p::ParserToken, inp::Input)::ParseResult
+function apply(p::ParserPredicate, inp::Input)::ParseResult
     state = copy_state(inp)
     if !eof(inp)
         s = next(inp)
@@ -279,21 +297,61 @@ function apply(p::ParserToken, inp::Input)::ParseResult
     end
 end
 
+token_parser(literal) = ParserLiteral(literal)
+struct ParserLiteral <: Parser
+    literal::Any
+end
+
+function apply(p::ParserLiteral, inp::Input)
+    state = copy_state(inp)
+    if !eof(inp)
+        s = next(inp)
+        if s == p.literal
+            Success(s, inp)
+        else
+            set_state!(inp, state)
+            Failure("expected $p.literal but got $s", inp)
+        end
+    else
+        Failure("end of input")
+    end
+end
+
+token_parser(regex::Regex) = ParserRegex(regex)
+struct ParserRegex <: Parser
+    regex::Regex
+end
+
+function apply(p::ParserRegex, inp::Input)
+    state = copy_state(inp)
+    if !eof(inp)
+        s = next(inp)
+        if search(s, p.regex) == 1:endof(s)
+            Success(s, inp)
+        else
+            set_state!(inp, state)
+            Failure("expected $p.literal but got $s", inp)
+        end
+    else
+        Failure("end of input")
+    end
+end
+
 # example code
 
 mutable struct TokenList <: Input
-    pos::Int
+    state::Int
     data::Vector{AbstractString}
 end
 function TokenList(x::Any)
-    pos = start(x)
-    TokenList(pos, x)
+    state = start(x)
+    TokenList(state, x)
 end
 
-eof(inp::TokenList) = done(inp.data, inp.pos)
-next(inp::TokenList) = begin item, inp.pos = next(inp.data, inp.pos); item end
-copy_state(inp::TokenList) = copy(inp.pos)
-set_state!(inp::TokenList, x::Any) = begin inp.pos = x end
+eof(inp::TokenList) = done(inp.data, inp.state)
+next(inp::TokenList) = begin item, inp.state = next(inp.data, inp.state); item end
+copy_state(inp::TokenList) = copy(inp.state)
+set_state!(inp::TokenList, x::Any) = begin inp.state = x end
 
 function example()
     s13 = token_parser(x->!isempty(x), 1, 3)
