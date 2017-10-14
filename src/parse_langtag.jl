@@ -34,24 +34,22 @@ ALNUM18 = token_parser(is_alnum, 1, 8) >>> lowercase
 ALNUM28 = token_parser(is_alnum, 2, 8) >>> lowercase
 ALNUM3 = token_parser(is_alnum, 3, 3) >>> lowercase
 
-singleton = token_parser(x-> is_alnum(x) && lowercase(x) != "x", 1, 1) >>> t->lowercase(t[1])
-letterx = token_parser(x-> lowercase(x) == "x", 1, 1) >>> t-> 'x'
+singleton() = token_parser(x-> is_alnum(x) && lowercase(x) != "x", 1, 1) >>> t->lowercase(t[1])
+letterx() = token_parser(x-> lowercase(x) == "x", 1, 1) >>> t-> 'x'
 
-privateuse =  letterx % rep(ALNUM18 >>> Symbol, 1, 999) >>> (t-> t[1] => t[2])
-extension = singleton % rep(ALNUM28 >>> Symbol, 1, 999) >>> (t-> t[1] => t[2])
-extprivate = rep(extension) % opt(privateuse) >>> Iterators.flatten
+privateuse() =  letterx % rep(ALNUM18 >>> Symbol, 1, 999) >>> (t-> t[1] => t[2])
+extension() = singleton % rep(ALNUM28 >>> Symbol, 1, 999) >>> (t-> t[1] => t[2])
+extprivate() = rep(extension) % opt(privateuse) >>> Iterators.flatten
 
-variant =   ALNUM58 |
-            DIGIT1 % ALNUM3 >>> join
-region =    ALPHA2 |
-            DIGIT3
-script =    ALPHA4 >>> (t-> t |> lowercase |> titlecase)
-extlang =   rep(ALPHA3, 1, 3) >>> (t-> join(String.(t), SEP))
-language =  ALPHA23 % opt(extlang) >>> (t-> isempty(t[2]) ? t[1] : t[1] * SEP * t[2][1])
+variant() =   ALNUM58 | DIGIT1 % ALNUM3 >>> join
+region() =    ALPHA2 | DIGIT3
+script() =    ALPHA4 >>> (t-> t |> lowercase |> titlecase)
+extlang() =   rep(ALPHA3, 1, 3) >>> (t-> join(String.(t), SEP))
+language() =  ALPHA23 % opt(extlang) >>> (t-> isempty(t[2]) ? t[1] : t[1] * SEP * t[2][1])
 
 flatstring(x::Vector) = isempty(x) ? "" : join(x)
 
-langtag =   ( language >>> Symbol ) %
+langtag() =   ( language >>> Symbol ) %
             ( opt(script) >>> flatstring >>> Symbol ) %
             ( opt(region) >>> flatstring >>> Symbol ) %
             ( rep(variant) >>> t-> isempty(t) ? Symbol[] : Symbol.(t) ) %

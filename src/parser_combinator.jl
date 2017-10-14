@@ -43,17 +43,28 @@ struct Failure <: ParseResult{Void}
 end
 
 """
+    `Parser`
+
     The parser maps an input to a parse result.
     The parser generators create a parser from elementary parts.
+    The type `T` is the result of `apply(p::Parser{T}, input)`
 """
 abstract type Parser end
+
+Parsable = Union{Parser,Function,Tuple{Function,Vararg{Any}}}
+
+extract_parser(x::Parser)::Parser = x
+extract_parser(f::Function)::Parser = extract_parser(f())
+extract_parser(t::Tuple{Function,Vararg{Any}})::Parser = extract_parser(t[1](t[2:end]...)) 
+
 """
     Apply a parser to the given input and produce a success result or a failure message.
 """
 apply(p::Parser, inp::Input) = Failure("apply not implemented for type $(typeof(p))", inp)
+apply(p::Parsable, inp::Input) = apply(extract_parser(p), inp)
 
-const DelayedFunction{T} = Tuple{Function,T} # Function must have return type T
-const ValueOrName = Union{Parser,DelayedFunction{Parser}}
+const CallByName{T} = Tuple{Function,T} # Function must have return type T
+const ValueOrName = Union{Parser,CallByName{Parser}}
 
 """
     `p % f`
@@ -61,7 +72,7 @@ const ValueOrName = Union{Parser,DelayedFunction{Parser}}
     Generate sequencing parser, which accepts `p` followed by `q`.
     Result is a tuple with the results of `p` and `q`.
 """
-%(p::Parser, q::Parser) = ParserSeq(p, [q])
+%(p::Parsable, q::Parsable) = ParserSeq(p, [q])
 
 """
     `p % (f, q)`
@@ -73,10 +84,10 @@ const ValueOrName = Union{Parser,DelayedFunction{Parser}}
 %(p::Parser, pf::ValueOrName) = ParserSeq(p, pf)
 
 struct ParserSeq <: Parser
-    p::Parser
-    qlist::Vector{ValueOrName}
+    p::Parsable
+    qlist::Vector{Parsable}
 end
-ParserSeq(p::Parser, qa::ValueOrName...) = ParserSeq(p, qa)
+ParserSeq(p::Parsable, qa::Parsable...) = ParserSeq(p, collect(qa))
 
 %(p::ParserSeq, qf::ValueOrName) = begin push!(p.qlist, qf); p end
 %(p::ParserSeq, q::Parser) = begin push!(p.qlist, q); p end
@@ -91,7 +102,7 @@ function apply(pseq::ParserSeq, inp::Input)
     if isa(s, Success)
         push!(res, s.result)
         for q in pseq.qlist
-            s = apply(parser(q), inp)
+            s = apply(q, inp)
             if isa(s, Success)
                 push!(res, s.result)
             else
@@ -116,13 +127,13 @@ end
 
     Same as `p % q` but the result is the result of `q`.
 """
->>(p::Parser, q::Parser) = p % q >>> (tup -> tup[2])
+>>(p::Parsable, q::Parsable) = p % q >>> (tup -> tup[2])
 """
     `p << q`
 
     Same as `p % q` but the result is the result of `p`.
 """
-<<(p::Parser, q::Parser) = p % q >>> (tup -> tup[1])
+<<(p::Parsable, q::Parsable) = p % q >>> (tup -> tup[1])
 
 """
     `p | q`
@@ -130,7 +141,7 @@ end
     Generate altenative parser, which first tries `p` and return its result if successful.
     Otherwise try `q` and return result of `q`.
 """
-|(p::Parser, q::Parser) = ParserAlt(p, q)
+|(p::Parsable, q::Parsable) = ParserAlt(p, q)
 
 """
     `p | (f, q)`
@@ -139,10 +150,10 @@ end
     Otherwise try `f(q)` and return result that. `f` is a function returning a parser.
     This variant is useful to break recurring loops if `f` is involved in production.
 """
-|(p::Parser, q::DelayedFunction{Parser}) = ParserAlt(p, q)
+|(p::Parser, q::ValueOrName) = ParserAlt(p, q)
 struct ParserAlt <: Parser
-    p::Parser
-    q::ValueOrName
+    p::Parsable
+    q::Parsable
 end
 
 function apply(palt::ParserAlt, inp::Input)::ParseResult
@@ -150,7 +161,7 @@ function apply(palt::ParserAlt, inp::Input)::ParseResult
     if isa(s, Success)
         s
     else
-        apply(parser(palt.q), s.inp)
+        apply(palt.q, s.inp)
     end
 end
 
@@ -161,9 +172,9 @@ end
     Result is `Success(f(x), inp)` when `x` is the result of `p` when successful.
     Result is failure result of `p` if not successful.
 """
->>>(p::Parser, f::Union{Function,Type}) = ParserConv(p, f)
+>>>(p::Parsable, f::Union{Function,Type}) = ParserConv(p, f)
 struct ParserConv <: Parser
-    p::Parser
+    p::Parsable
     f::Union{Function,Type}
 end
 
@@ -182,9 +193,9 @@ end
     Generate repeating parser, which accepts `low` to `hi` repetitions of parser `p`.
     Result type is `Vector{T}` where `T` is result type of `p`.
 """
-rep(p::Parser, low::Int, hi::Int) = ParserRep(p, low, hi)
+rep(p::Parsable, low::Int, hi::Int) = ParserRep(p, low, hi)
 struct ParserRep <: Parser
-    p::Parser
+    p::Parsable
     low::Int
     hi::Int
 end
@@ -218,13 +229,13 @@ end
     Parser accepting same as `p` or empty input.
     Result same as `p` if `p` was successful, otherwise `Success(nothing, inp)`.
 """
-opt(p::Parser) = rep(p, 0, 1)
+opt(p::Parsable) = rep(p, 0, 1)
 """
     `rep(p::Parser)::Parser`
 
     Same as rep(p, 0, ∞)`
 """
-rep(p::Parser) = rep(p, 0, INF)
+rep(p::Parsable) = rep(p, 0, INF)
 
 """
     `repsep(p::Parser, q::Parser)::Parser`
@@ -232,7 +243,7 @@ rep(p::Parser) = rep(p, 0, INF)
     Repetitions of `p`, which are separated by `q`. For example: `p q p q p` ).
     Result is vector of results of the various `p`.
 """
-repsep(p::Parser, q::Parser) = p % rep(q >> p, 0, INF)
+repsep(p::Parsable, q::Parsable) = p % rep(q >> p, 0, INF)
 
 """
     `EOF::Parser`
@@ -313,7 +324,7 @@ function apply(p::ParserLiteral, inp::Input)
             Failure("expected $p.literal but got $s", inp)
         end
     else
-        Failure("end of input")
+        Failure("end of input", inp)
     end
 end
 
