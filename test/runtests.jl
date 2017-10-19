@@ -1,5 +1,9 @@
-using ResourceBundle
-using Base.Test
+using ResourceBundles
+using Test
 
-# write your own tests here
-@test 1 == 2
+@testset "parser_combinator" begin include("parser_combinator.jl") end
+@testset "parse_langtag"    begin include("parse_langtag.jl") end
+@testset "locale" begin include("locale.jl") end
+@testset "resource_bundle" begin include("resource_bundle.jl") end
+@testset "string" begin include("string.jl") end
+
