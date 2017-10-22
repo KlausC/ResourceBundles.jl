@@ -72,14 +72,14 @@ const IsoLanguageTable =
          "ig" * "ibo" * # Igbo
          "ii" * "iii" * # Sichuan Yi
          "ik" * "ipk" * # Inupiaq
-         "in" * "ind" * # Indonesian (old)
+         "id" * "ind" * # Indonesian (new)
          "io" * "ido" * # Ido
          "is" * "isl" * # Icelandic
          "it" * "ita" * # Italian
          "iu" * "iku" * # Inuktitut
-         "iw" * "heb" * # Hebrew (old)
+         "ne" * "heb" * # Hebrew (new)
          "ja" * "jpn" * # Japanese
-         "ji" * "yid" * # Yiddish (old)
+         "yi" * "yid" * # Yiddish (new)
          "jv" * "jav" * # Javanese
          "ka" * "kat" * # Georgian
          "kg" * "kon" * # Kongo
@@ -117,7 +117,7 @@ const IsoLanguageTable =
          "mt" * "mlt" * # Maltese
          "my" * "mya" * # Burmese
          "na" * "nau" * # Nauru
-         "nb" * "nob" * # Norwegian Bokm?l
+         "nb" * "nob" * # Norwegian Bokmål
          "nd" * "nde" * # North Ndebele
          "ne" * "nep" * # Nepali
          "ng" * "ndo" * # Ndonga
@@ -181,7 +181,7 @@ const IsoLanguageTable =
          "uz" * "uzb" * # Uzbek
          "ve" * "ven" * # Venda
          "vi" * "vie" * # Vietnamese
-         "vo" * "vol" * # Volap?k
+         "vo" * "vol" * # Volapük
          "wa" * "wln" * # Walloon
          "wo" * "wol" * # Wolof
          "xh" * "xho" * # Xhosa
@@ -645,3 +645,79 @@ const IsoScriptTable =
 	"Zxxx" * # Code for unwritten documents
 	"Zyyy" * # Code for undetermined script
 	"Zzzz"   # Code for uncoded script
+
+# convert old registered language tags to replacements
+GRANDFATHERED = Dict{String,String}(
+    # "tag"      => "preferred",
+   "art-lojban"  => "jbo",
+   "cel-gaulish" => "xtg-x-cel-gaulish",   # fallback
+   "en-GB-oed"   => "en-GB-x-oed",         # fallback
+   "i-ami"       => "ami",
+   "i-bnn"       => "bnn",
+   "i-default"   => "en-x-i-default",      # fallback
+   "i-enochian"  => "und-x-i-enochian",    # fallback
+   "i-hak"       => "hak",
+   "i-klingon"   => "tlh",
+   "i-lux"       => "lb",
+   "i-mingo"     => "see-x-i-mingo",       # fallback
+   "i-navajo"    => "nv",
+   "i-pwn"       => "pwn",
+   "i-tao"       => "tao",
+   "i-tay"       => "tay",
+   "i-tsu"       => "tsu",
+   "no-bok"      => "nb",
+   "no-nyn"      => "nn",
+   "sgn-BE-FR"   => "sfb",
+   "sgn-BE-NL"   => "vgt",
+   "sgn-CH-DE"   => "sgg",
+   "zh-guoyu"    => "cmn",
+   "zh-hakka"    => "hak",
+   "zh-min"      => "nan-x-zh-min", # fallback
+   "zh-min-nan"  => "nan",
+   "zh-xiang"    => "hsn",
+  )
+
+# convert old language codes to new codes
+OLD_TO_NEW_LANG = Dict{String,String}(
+  # "old"=> "new",                          
+    "iw" => "he",
+    "ji" => "yi",
+    "in" => "id")
+
+abstract type StringDict{K,L,M} end
+
+struct StringDict32 <: StringDict{2,3,5}
+    data::String
+end
+struct StringDict50 <: StringDict{0,4,4}
+    data::String
+end
+
+const LANGUAGE3_DICT = StringDict32(IsoLanguageTable)
+const COUNTRY3_DICT = StringDict32(IsoCountryTable)
+const SCRIPT_SET = StringDict50(IsoScriptTable)
+
+function Base.getindex(d::StringDict{K,L,M}, x3::Union{T,Symbol}) where {K,L,M,T<:AbstractString}
+    x = string(x3)
+    length(x) != L && return isa(x3, Symbol) ? x3 : Symbol(x3)
+    ix = K
+    while ix >= 0 && ix % M != K+1
+        ix = searchindex(d.data, x, ix+1)
+        ix = ifelse(ix == 0, -1, ix)
+    end
+    ix > 0  ? Symbol(d.data[ix-K:ix-1]) : isa(x3, Symbol) ? x3 : Symbol(x)
+end
+
+Base.keys(d::StringDict{K,L,M}) where {K,L,M} = StringKeyIterator{K,L,M}(d.data)
+struct StringKeyIterator{K,L,M}
+    data::String
+end
+Base.start(d::StringDict{K,L,M}) where {K,L,M} = 0
+Base.next(d::StringDict{K,L,M}, s) where {K,L,M} = K == 0 ? Symbol(d.data[s+1:s+L]) : Symbol(d.data[s+K+1:s+K+L]) => Symbol(d.data[s+1:s+K]), s + M
+Base.done(d::StringDict{K,L,M}, s) where {K,L,M}= s >= length(d.data)
+Base.length(d::StringDict{K,L,M}) where {K,L,M} = length(d.data) ÷ M
+Base.start(it::StringKeyIterator{K,L,M}) where {K,L,M} = 1 + K
+Base.next(it::StringKeyIterator{K,L,M}, s) where {K,L,M} = Symbol(it.data[s:s+L-1]), s + M
+Base.done(it::StringKeyIterator{K,L,M}, s) where {K,L,M}= s > length(it.data)
+Base.length(it::StringKeyIterator{K,L,M}) where {K,L,M} = length(it.data) ÷ M
+Base.in(x, d::StringDict{0,L,M}) where {L,M} = d[x] == Symbol("")
