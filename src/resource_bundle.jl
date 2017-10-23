@@ -40,36 +40,89 @@ JENDL = length(JEND)
 
 using Base.Filesystem
 
-function findfiles(dir::AbstractString, name::AbstractString)
-    flist = Dict{String,String}()
+const NULLDICT = Dict()
+
+function findfiles(dir::AbstractString, name::AbstractString, for_loc::Locale=Locale(""))
+    flist = Dict{Locale,String}()
     prefix = joinpath(dir, name)
     for (root, dirs, files) in walkdir(dir)
         for f in files
             file = joinpath(root, f)
             if startswith(file, prefix)
-                loc = location_part(file, prefix)
-                if loc != nothing && !haskey(flist, loc)
+                loc = locale_pattern(file, prefix)
+                if loc != nothing && !haskey(flist, loc) && loc ⊆ for_loc
                     push!(flist, loc => file)
                 end
             end
         end
     end
-    flist
+    locs = sort(collect(keys(flist)))
+    res = collect((loc, flist[loc], NULLDICT) for loc in locs)
+    Vector{Tuple{Locale,String,Dict}}(res)
 end
 
-function location_part(f::AbstractString, name::AbstractString)
+const LocalePathDict{T} = Tuple{Locale,String,Union{Void,Dict{String,T}}}
+
+function locale_pattern(f::AbstractString, name::AbstractString)
     if startswith(f, name) && endswith(f, JEND)
         n = sizeof(name)
         m = sizeof(f)
 
         x = replace(f, Filesystem.path_separator, SEP)
         x = replace(f, '-', SEP)
-        String(x[nextind(x, n, 2):prevind(x, m, JENDL)])
+        Locale(String(x[nextind(x, n, 2):prevind(x, m, JENDL)]))
     else
         nothing
     end
 end
 
+function load_file(f::AbstractString, T::Type)
+    try
+        #str = read(f, String)
+        #ex = parse(replace(str, r"\n+", "\n"))
+        #dict = eval(ex)
+        dict = include(f)
+    catch exc
+        dict = Dict{String, T}()
+    end
+    if isa(dict, Dict)
+        el = eltype(dict).parameters
+        if !(el[1] <: String && el[2] <: T)
+            dict = Dict{String,T}()
+        end
+    else
+        dict = Dict{String,T}()
+    end
+    dict
+end
 
-
+function lookup_resource!(flist::Vector{X}, key::String,::Type{T}) where {T,X<:Tuple}
+    i = 0
+    noloc = Locale("und-nolocale")
+    xloc = noloc
+    val = nothing
+    for (loc, path, dict) in flist
+        i += 1
+        if dict === NULLDICT
+            dict = load_file(path, T)
+            flist[i] = (loc, path, dict)
+        end
+        if haskey(dict, key)
+            if xloc == noloc
+                xloc = loc
+                val = dict[key]
+            else
+                if xloc ⊆ loc
+                    break
+                else
+                    error("ambiguous key '", key, "' locales ", xloc, " and ", loc)
+                end
+            end
+        end
+    end
+    if xloc == noloc && isa(key,T)
+        val = key
+    end
+    val
+end
 

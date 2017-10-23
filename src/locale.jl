@@ -236,6 +236,27 @@ function hash(x::Locale, h::Int)
     hash(x.extensions, hash(x.variants, hash(x.region, hash(x.script, hash(x.language, h)))))
 end
 
+function Base.issubset(x::Locale, y::Locale)
+    x == y && return true
+    issublang(x.language, y.language) &&
+    issubscript(x.script, y.script) &&
+    issubregion(x.region, y.region) &&
+    issubvar(x.variants, y.variants) &&
+    issubext(x.extensions, y.extensions)
+end
+
+issublang(x::Symbol, y::Symbol) = startswith(string(x), string(y))
+issubscript(x::Symbol, y::Symbol) = startswith(string(x), string(y))
+issubregion(x::Symbol, y::Symbol) = startswith(string(x), string(y))
+issubvar(x::Vector{Symbol}, y::Vector{Symbol}) = issubset(y, x)
+function issubext(x::Dict{Char,Vector{Symbol}}, y::Dict{Char,Vector{Symbol}})
+    ky = keys(y)
+    issubset(ky, keys(x)) &&
+    all(k-> issubset(y[k], x[k]), ky)
+end
+
+Base.isless(x::Locale, y::Locale) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
+islexless(x::Locale, y::Locale) = string(x) < string(y)
 
 function Base.show(io::IO, x::Locale)
     ES = Symbol("")
