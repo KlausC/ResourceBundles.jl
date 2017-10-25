@@ -1,4 +1,4 @@
 
-Dict (
+Dict(
       "hello" => "cava FR"
-     )
+)

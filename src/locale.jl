@@ -7,7 +7,10 @@ export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
 
 import Base: ==, hash
 """
-https://tools.ietf.org/html/bcp47
+
+    Locale
+
+See: https://tools.ietf.org/html/bcp47
 """
 struct Locale
     language::Symbol
@@ -23,9 +26,18 @@ const ExtensionDict = Dict{Char,VariantVector}
 const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, ExtensionDict}
 
 """
-    return Locale object from cache or create new one and register in cache.
+
+    Locale(languagetag::String))
+    Locale(lang, region)
+    Locale(lang, region, variant)
+    Locale(lang, script, region, variant)
+    Locale("") -> ROOT
+    Locale() -> BOTTOM
+
+Return `Locale` object from cache or create new one and register in cache.
 """
-Locale(langtag::AS) = Locale(splitlangtag(langtag)...)
+Locale() = BOTTOM
+Locale(langtag::AS) = langtag == "" ? ROOT : Locale(splitlangtag(langtag)...)
 Locale(lang::AS, region::AS) = Locale(lang, "", region, "", "")
 Locale(lang::AS, region::AS, variant::AS) = Locale(lang, "", region, variant, "")
 Locale(lang::AS, script::AS, region::AS, variant::AS) = Locale(lang, script, region, variant, "")
@@ -42,9 +54,14 @@ function Locale(language::AS, script::AS, region::AS, variant::AS, extension::AS
     end
 end
 
+# utilities
+
 const SEPS = ['_', '-']
 const NOSYM = Symbol('-')
 const NOKEY = '\0'
+const S0 = Symbol("")
+const EMPTY_VECTOR = Symbol[]
+const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
 
 function check_language(x::AS)
     lang = can_language(x)
@@ -237,7 +254,8 @@ function hash(x::Locale, h::Int)
 end
 
 function Base.issubset(x::Locale, y::Locale)
-    x == y && return true
+    ( x == y || x == BOTTOM || y == ROOT ) && return true
+    y == BOTTOM && return false
     issublang(x.language, y.language) &&
     issubscript(x.script, y.script) &&
     issubregion(x.region, y.region) &&
@@ -340,14 +358,75 @@ const CACHE = Dict{Key, Locale}()
     # Useful constant for country.
     const CANADA = Locale("en", "CA");
 
-    """
-     * Useful constant for the root locale.  The root locale is the locale whose
-     * language, country, and variant are empty ("") strings.  This is regarded
-     * as the base locale of all locales, and is used as the language/country
-     * neutral locale for the locale sensitive operations.
-     *
-     * @since 1.6
-    """
+"""
+
+    ROOT
+
+Useful constant for the root locale.  The root locale is the locale whose
+language, country, and variant are empty ("") strings.  This is regarded
+as the base locale of all locales, and is used as the language/country
+neutral locale for the locale sensitive operations. 
+"""
 const ROOT = Locale("", "");
+const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
+
+"""
+
+    default_locale(category)
+
+Determine default locale form posix environment variables:
+
+LANG default if specific category not defined
+LC_* specific category
+LC_ALL  overides all other settings
+
+* may be one of
+MESSAGES    message catalogs
+COLLATE     ordering of strings
+NUMERIC     number formats
+MONETARY    format of monetary values
+TIME        date/time formats
+"""
+function default_locale(category::Union{Symbol,AbstractString})
+    ploc = posix_locale(string(category))
+    Locale(transform_posix_to_iso(ploc))
+end
+
+"""
+
+    posix_locale(category)
+
+Read posix environment variable for category.
+"""
+function posix_locale(category::String)
+    s = uppercase(string(category))
+    if ! startswith(s, "LC_")
+        s = s == "LANG" ? s : "LC_" * s
+    end
+    get(ENV, "LC_ALL", get(ENV, string(category), get(ENV, "LANG", "")))
+end
+
+"""
+
+    transform_posix_to_iso(posix::String) -> iso-string
+
+Posix string has the general form `<lang_country>][.<charset>][@<extension>]`.
+We transform this to the following string:
+`<lang_country>][-x-posix-<extension>]`.
+The charset is ignored. The extension is optional in input and output.
+"""
+function transform_posix_to_iso(ploc::String)
+    a = split(ploc, '.')
+    if length(a) <= 1
+        b = split(a[1], '@')
+        if length(b) > 1
+            a[1] = b[1]
+        end
+    else
+        b = split(a[2], '@')
+    end
+    length(b) <= 1 && return a[1]
+    return a[1] * "-x-posix-" * join(b[2:end], '-')
+end
 
 end # module Locales
