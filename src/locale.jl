@@ -6,6 +6,9 @@ export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
 export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
 
 import Base: ==, hash
+
+include("locale_iso_data.jl")
+
 """
 
     Locale
@@ -25,6 +28,9 @@ const VariantVector = Vector{Symbol}
 const ExtensionDict = Dict{Char,VariantVector}
 const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, ExtensionDict}
 
+const EMPTYV = String[]
+const EMPTYD = ExtensionDict()
+
 """
 
     Locale(languagetag::String))
@@ -38,17 +44,24 @@ Return `Locale` object from cache or create new one and register in cache.
 """
 Locale() = BOTTOM
 Locale(langtag::AS) = langtag == "" ? ROOT : Locale(splitlangtag(langtag)...)
-Locale(lang::AS, region::AS) = Locale(lang, "", region, "", "")
-Locale(lang::AS, region::AS, variant::AS) = Locale(lang, "", region, variant, "")
-Locale(lang::AS, script::AS, region::AS, variant::AS) = Locale(lang, script, region, variant, "")
+Locale(lang::AS, region::AS) = Locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
+Locale(lang::AS, region::AS, variant::AS) = Locale(lang, EMPTYV, "", region, [variant], EMPTYD)
+Locale(lang::AS, script::AS, region::AS, variant::AS) = Locale(lang, EMPTYV, script, region, [variant], EMPTYD)
 
-function Locale(language::AS, script::AS, region::AS, variant::AS, extension::AS)
-    lang = check_language(language)
+function Locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
+
+    lang = check_language(language, extlang)
     scri = check_script(script)
     regi = check_region(region)
     vari = check_variant(variant)
-    exte = check_extension(extension)
-    key = tuple(lang, scri, regi, vari, exte)
+    if lang == S0
+        lex = length(extension)
+        if !(scri == S0 && regi == S0 && length(vari) == 0 &&
+             (lex == 1 && first(keys(extension)) == 'x' || lex == 0 ) )
+            throw(ArgumentError("missing language prefix"))
+        end
+    end
+    key = tuple(lang, scri, regi, vari, extension)
     get!(CACHE, key) do
        Locale(key...)
     end
@@ -56,190 +69,139 @@ end
 
 # utilities
 
-const SEPS = ['_', '-']
-const NOSYM = Symbol('-')
-const NOKEY = '\0'
+const SEP = '-'
 const S0 = Symbol("")
 const EMPTY_VECTOR = Symbol[]
 const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
 
-function check_language(x::AS)
-    lang = can_language(x)
-    lang == NOSYM && throw(ArgumentError("Invalid language $x"))
-    lang
+function check_language(x::AS, extlang::Vector{String})
+    x = get(OLD_TO_NEW_LANG, x, x)
+    len = length(extlang)
+    if length(x) <= 3
+        len <= 1 || throw(ArgumentError("only one language extension allowed '$x-$extlang'")) 
+        if length(extlang) >= 1
+            x = extlang[1]
+        end
+        if length(x) == 3
+            x = LANGUAGE3_DICT[x] # replace 3-char code by preferred 2-char code
+        end
+    else
+        len == 0 || throw(ArgumentError("no language exensions allowed '$x-$extlang'"))
+    end
+    Symbol(x)
 end
 
-function can_language(x::AS)
+function is_language(x::AS)
     len = length(x)
-    ( len == 0 || 2 <= len <= 8 && is_alpha(x) ) || return NOSYM
-    x = lowercase(x)
-    # using deprecated ISO639.1 language codes for he, yi and id
-    x === "he" ? "iw" : x === "yi" ? "ji" : x === "id" ? "in" : x
-    Symbol(x)
+    2 <= len <= 8 && is_alpha(x)
+end
+
+function is_langext(x::AS)
+    len = length(x)
+    len == 3 && is_alpha(x)
 end
 
 function check_script(x::AS)
-    scri = can_script(x)
-    scri == NOSYM && throw(ArgumentError("Invalid script $x"))
-    scri
+    Symbol(x)
 end
 
-function can_script(x::AS)
+function is_script(x::AS)
     len = length(x)
-    ( len == 0 || len == 4 && is_alpha(x) ) || return NOSYM
-    x = ucfirst(x)
-    Symbol(x)
+    len == 4 && is_alpha(x)
 end
 
 function check_region(x::AS)
-    regi = can_region(x)
-    regi == NOSYM && throw(ArgumentError("Invalid country/region $x"))
-    regi
-end
-
-function can_region(x::AS)
-    len = length(x)
-    ( len == 0 || ( len == 2 && is_alpha(x) ) || ( len == 3 && is_digit(x) ) ) || return NOSYM
-    x = uppercase(x)
     Symbol(x)
 end
 
-function check_variant(x::AS)
-    vari = can_variant(x)
-    vari == NOSYM && throw(ArgumentError("Invalid variant string $x"))
-    vari
-end
-
-function can_variant(x::AS)
+function is_region(x::AS)
     len = length(x)
-    varis = split(x, SEPS)
-    len == 0 || all(is_variant_subtag, varis) || return NOSYM
-    len == 0 ? Symbol[] : Symbol.(varis)
+    ( len == 2 && is_alpha(x) ) || ( len == 3 && is_digit(x) )
 end
 
-function is_variant_subtag(x::AS)
+function check_variant(vari::Vector{String})
+    Symbol.(vari)
+end
+
+function is_variant(x::AS)
     len = length(x)
     is_alnum(x) && ( ( 4 <= len <= 8 && isdigit(x[1]) ) || ( 5 <= len <= 8 ))
 end
 
-NOKEY = '\0'
-
-function check_extension(x::AS)
-    ext = can_extension(x)
-    isa(ext, String) && throw(ArgumentError(ext))
-    ext
+function is_single(x::AS)
+    length(x) == 1 && is_alpha(x)
 end
 
-function can_extension(x::AS)
-    len = length(x)
-    x = lowercase(x)
-    ext = Dict{Char,Vector{Symbol}}()
-    len == 0 && return ext
-    varis = split(x, SEPS)
-    all(is_alnum, varis) || return "invalid chars in extension '$x'"
-    key = NOKEY
-    extv = Symbol[]
-    err = ""
-    function insert!()
-        if key != NOKEY
-            haskey(ext, key) && ( err = "multiple extension key $key" )
-            length(extv) == 0 && ( err = "missing extension subtags for key $key" )
-            ext[key] = extv
-            extv = Symbol[]
-        end
-        ""
-    end
+"""
 
-    for c in varis
-        lenc = length(c)
-        if lenc == 1 && key != 'x'
-            insert!()
-            err == "" || return err
-            key = c[1]
-        else
-            ( lenc >= 1 && is_extension_subtag(c) ) || return "wrong extension subtag '$c'"
-            push!(extv, Symbol(c))
-        end
-    end
-    if key != NOKEY
-        insert!()
-        err == "" || return err
-    end
-    ext
-end
-
-function is_extension_subtag(x::AS)
-    len = length(x)
-    1 <= len <= 8 || return false
-    is_alnum(x)
-end
-
-
-function search2(x::AS, sep, start)
-    ip = search(x, sep, start)
-    eox = endof(x)
-    ip == 0 ? (start, eox, nextind(x, eox)) : (start, prevind(x, ip), nextind(x, ip))
-end
-
+Parse language tag and convert to Symbols and collections of Symbols.
+"""
 function splitlangtag(x::AS)
-    is_alnumsep(x) || throw(ArgumentError("language tag contains non-ascii '$x'"))
+    is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
+    if x == "C"
+        x = ""
+    end
+    x = replace(lowercase(x), '_', SEP) # normalize input
+    x = transform_posix_to_iso(x) # handle and replace '.' and '@'.
+    x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
+    token = split(x, SEP, keep=true)
     lang = ""
+    langex = String[]
     scri = ""
     regi = ""
-    vari = ""
-    exte = ""
-    eox = endof(x)
+    vari = String[]
+    exte = ExtensionDict()
+    langlen = 0
     k = 1
-    i, j, k = search2(x, SEPS, k)
-    test = x[i:j]
-    if can_language(test) != NOSYM
-        lang = test
-        i, j, k = search2(x, SEPS, k)
-        test = x[i:j]
+    n = length(token)
+    if k <= n && is_language(token[k])
+        lang = token[k]
+        langlen = length(lang)
+        k += 1
     end
-    if can_script(test) != NOSYM
-        scri = test
-        i, j, k = search2(x, SEPS, k)
-        test = x[i:j]
+    while k <= n && 2 <= langlen <= 3 && is_langext(token[k])
+        push!(langex, token[k])
+        k += 1
     end
-    if can_region(test) != NOSYM
-        regi = test
-        i, j, k = search2(x, SEPS, k)
-        test = x[i:j]
+    if k <= n && is_script(token[k])
+        scri = titlecase(token[k])
+        k += 1
     end
-    if can_variant(test) != NOSYM
-        iv = i
-        while k <= eox && ! (nextind(x, k) <= eox && x[nextind(x, k)] in SEPS)
-            i, j, k = search2(x, SEPS, k)
+    while k <= n && is_region(token[k])
+        regi = uppercase(token[k])
+        k += 1
+    end
+    while k <= n && is_variant(token[k])
+        push!(vari, token[k])
+        k += 1
+    end
+    while k <= n && is_single(token[k])
+        sing = token[k][1]
+        haskey(exte, sing) && throw(ArgumentError("multiple occurrence of singleton '$sing'"))
+        m = sing == 'x' ? 1 : 2
+        k += 1
+        ext = Symbol[]
+        while k <= n && m <= length(token[k]) <= 8
+            push!(ext, Symbol(token[k]))
+            k += 1
         end
-        vari = x[iv:j]
-    else
-        k = i
+        exte[sing] = ext
     end
-    exte = x[k:end]
-    err = can_extension(exte)
-    isa(err, String) && throw(ArgumentError(err))
-    [lang, scri, regi, vari, exte]
+
+    k > n || x == "" || throw(ArgumentError("no language tag: '$x' after $(k-1) "))
+    length(langex) <= 3 || throw(ArgumentError("too many language extensions '$x'"))
+
+    lang, langex, scri, regi, vari, exte
 end
 
-function is_category(x::AS, test::Function)
-    for c in x
-        test(c) && isascii(c) || return false
-    end
-    true
-end
+# character properties for all characters in string
+is_alpha(x::AS) = all(isalpha, x)
+is_digit(x::AS) = all(isdigit, x)
+is_alnum(x::AS) = all(isalnum, x)
+is_ascii(x::AS) = all(isascii, x)
+is_alnumsep(x::AS) = all(c->isascii(c) && ( isalnum(c) || c in "-_.@" ), x)
 
-is_alpha(x::AS) = is_category(x, isalpha)
-is_digit(x::AS) = is_category(x, isdigit)
-is_alnum(x::AS) = is_category(x, isalnum)
-is_ascii(x::AS) = is_category(x, y->true)
-function is_alnumsep(x::AS)
-    for c in x
-        isascii(c) && ( isalnum(c) || c in SEPS ) || return false
-    end
-    true
-end 
-
+# equality
 function ==(x::Locale, y::Locale)
     x === y && return true
     x.language == y.language &&
@@ -276,10 +238,10 @@ end
 Base.isless(x::Locale, y::Locale) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
 islexless(x::Locale, y::Locale) = string(x) < string(y)
 
-function Base.show(io::IO, x::Locale)
+function Base.show(io2::IO, x::Locale)
     ES = Symbol("")
-    SEP = "-"
     sep = ""
+    io = IOBuffer()
     x.language !== ES && ( print(io, x.language); sep = SEP )
     x.script != ES &&  ( print(io, sep, x.script); sep = SEP )
     x.region != ES && ( print(io, sep, x.region); sep = SEP )
@@ -287,13 +249,17 @@ function Base.show(io::IO, x::Locale)
         v != ES && ( print(io, sep, v); sep = SEP )
     end
     ltx(a::Char, b::Char) = ( a != 'x' && a < b ) || b == 'x'
-    SEP = '-'
     for k in sort(collect(keys(x.extensions)), lt=ltx)
-        print(io, SEP, k)
+        print(io, sep, k); sep = SEP
         for v in x.extensions[k]
-            print(io, SEP, v)
+            print(io, sep, v)
         end
     end
+    out = String(take!(io))
+    if out == ""
+        out = "C"
+    end
+    print(io2, out)
 end
 
 const CACHE = Dict{Key, Locale}()
@@ -380,7 +346,7 @@ Valid categories are
 :CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
 """
 function locale(category::Symbol)
-    get(CURRENT_LOCALES, category)
+    CURRENT_LOCALES.dict[category]
 end
 
 """
@@ -418,8 +384,7 @@ MONETARY    format of monetary values
 TIME        date/time formats
 """
 function default_locale(category::Union{Symbol,AbstractString})
-    ploc = posix_locale(string(category))
-    Locale(transform_posix_to_iso(ploc))
+    Locale(posix_locale(string(category)))
 end
 
 """
@@ -433,7 +398,7 @@ function posix_locale(category::String)
     if ! startswith(s, "LC_")
         s = s == "LANG" ? s : "LC_" * s
     end
-    get(ENV, "LC_ALL", get(ENV, string(category), get(ENV, "LANG", "")))
+    get(ENV, "LC_ALL", get(ENV, s, get(ENV, "LANG", "")))
 end
 
 """
@@ -446,6 +411,9 @@ We transform this to the following string:
 The charset is ignored. The extension is optional in input and output.
 """
 function transform_posix_to_iso(ploc::String)
+    if ploc == "C"
+        return ""
+    end
     a = split(ploc, '.')
     if length(a) <= 1
         b = split(a[1], '@')
@@ -464,22 +432,19 @@ struct GlobalLocaleSet
     GlobalLocaleSet() = new(all_default_categories())
 end
 
-"""
-
-"""
-const CURRENT_LOCALES = GlobalLocaleSet()
-
 function all_default_categories()
     dict = Dict{Symbol,Locale}(
-                :COLLATE => default_locale(:COLLATE)
-                :CTYPE => default_locale(:CTYPE)
-                :TIME => default_locale(:TIME)
-                :MESSAGES => default_locale(:MESSAGES)
-                :MONETARY => default_locale(:MONETARY)
-                :NUMERIC  => default_locale(:NUMERIC)
-                :TIME => default_locale(:TIME)
+                :COLLATE => default_locale(:COLLATE),
+                :CTYPE => default_locale(:CTYPE),
+                :TIME => default_locale(:TIME),
+                :MESSAGES => default_locale(:MESSAGES),
+                :MONETARY => default_locale(:MONETARY),
+                :NUMERIC  => default_locale(:NUMERIC),
+                :TIME => default_locale(:TIME),
             )
 
 end
+
+const CURRENT_LOCALES = GlobalLocaleSet()
 
 end # module Locales
