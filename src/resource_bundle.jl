@@ -1,23 +1,5 @@
 using Base.Filesystem
 
-const DEFAULT_LOCALE = Locales.default_locale(:LC_MESSAGES)
-const CURRENT_LOCALE = DEFAULT_LOCALE
-
-"""
-    set_locale!(locale)
-
-Set current locale of module ResourceBundles. If locale is not given, reset to initial default. 
-"""
-set_locale!(loc::Locales.Locale) = CURRENT_LOCALE = loc
-set_locale!() = CURRENT_LOCALE = DEFAULT_LOCALE 
-
-"""
-    get_locale() -> Local
-
-Return current locale of module ResourceBundles.
-"""
-get_locale() = CURRENT_LOCALE
-
 const LocalePattern = Locale
 const Pathname = String
 
@@ -177,6 +159,7 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String, default::T) wh
     ifelse(x == nothing, default, key)
 end
 
+get_locale() = Locales.locale(:MESSAGES)
 get(bundle::ResourceBundle, key::String) = get(bundle, get_locale(), key)
 get(bundle::ResourceBundle{T}, key::String, default::T) where {T} = get(bundle, get_locale(), key, default)
 

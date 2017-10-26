@@ -372,9 +372,39 @@ const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT)
 
 """
 
+    locale(category)
+
+Determine current locale as stored in global variable.
+Throw exception, if no valid category name.
+Valid categories are
+:CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
+"""
+function locale(category::Symbol)
+    get(CURRENT_LOCALES, category)
+end
+
+"""
+
+    set_locale!(category, locale)
+
+Set current locale as stored in global variable.
+Category :ALL sets all defined categories to the same locale.
+Throw exception if category is not :ALL or one of the
+supported categories of `locale`.
+"""
+function set_locale!(category::Symbol, loc::Locale)
+    for cat in keys(CURRENT_LOCALES.dict)
+        if cat == category || category == :ALL
+            CURRENT_LOCALES[cat] = loc
+        end
+    end
+    category == :ALL ? loc : locale(category)
+end
+
+"""
     default_locale(category)
 
-Determine default locale form posix environment variables:
+Determine default locale from posix environment variables:
 
 LANG default if specific category not defined
 LC_* specific category
@@ -427,6 +457,29 @@ function transform_posix_to_iso(ploc::String)
     end
     length(b) <= 1 && return a[1]
     return a[1] * "-x-posix-" * join(b[2:end], '-')
+end
+
+struct GlobalLocaleSet
+    dict::Dict{Symbol,Locale}
+    GlobalLocaleSet() = new(all_default_categories())
+end
+
+"""
+
+"""
+const CURRENT_LOCALES = GlobalLocaleSet()
+
+function all_default_categories()
+    dict = Dict{Symbol,Locale}(
+                :COLLATE => default_locale(:COLLATE)
+                :CTYPE => default_locale(:CTYPE)
+                :TIME => default_locale(:TIME)
+                :MESSAGES => default_locale(:MESSAGES)
+                :MONETARY => default_locale(:MONETARY)
+                :NUMERIC  => default_locale(:NUMERIC)
+                :TIME => default_locale(:TIME)
+            )
+
 end
 
 end # module Locales
