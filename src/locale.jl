@@ -35,7 +35,7 @@ const EMPTYD = ExtensionDict()
 
     Locale(languagetag::String))
     Locale(lang, region)
-    Locale(lang, region, variant)
+    Locale(lang, script, region)
     Locale(lang, script, region, variant)
     Locale("") -> ROOT
     Locale() -> BOTTOM
@@ -43,16 +43,17 @@ const EMPTYD = ExtensionDict()
 Return `Locale` object from cache or create new one and register in cache.
 """
 Locale() = BOTTOM
-Locale(langtag::AS) = langtag == "" ? ROOT : Locale(splitlangtag(langtag)...)
-Locale(lang::AS, region::AS) = Locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
-Locale(lang::AS, region::AS, variant::AS) = Locale(lang, EMPTYV, "", region, [variant], EMPTYD)
-Locale(lang::AS, script::AS, region::AS, variant::AS) = Locale(lang, EMPTYV, script, region, [variant], EMPTYD)
+Locale(langtag::AS) = langtag == "" ? ROOT : create(splitlangtag(langtag)...)
+Locale(lang::AS, region::AS) = create(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
+Locale(lang::AS, script::AS, region::AS) = create(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
+Locale(lang::AS, script::AS, region::AS, variant::AS) = create(lang, EMPTYV, script, region, [variant], EMPTYD)
 
-function Locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
+# create instance and register in global cache.
+function create(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
 
     lang = check_language(language, extlang)
-    scri = check_script(script)
-    regi = check_region(region)
+    scri = check_script(titlecase(script))
+    regi = check_region(uppercase(region))
     vari = check_variant(variant)
     if lang == S0
         lex = length(extension)
@@ -75,10 +76,11 @@ const EMPTY_VECTOR = Symbol[]
 const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
 
 function check_language(x::AS, extlang::Vector{String})
+    is_language(x) || length(x) == 0 || throw(ArgumentError("no language prefix '$x'"))
     x = get(OLD_TO_NEW_LANG, x, x)
     len = length(extlang)
     if length(x) <= 3
-        len <= 1 || throw(ArgumentError("only one language extension allowed '$x-$extlang'")) 
+        len <= 1 || throw(ArgumentError("only one language extension allowed '$x-$(join(extlang, '-'))'")) 
         if length(extlang) >= 1
             x = extlang[1]
         end
@@ -86,7 +88,7 @@ function check_language(x::AS, extlang::Vector{String})
             x = LANGUAGE3_DICT[x] # replace 3-char code by preferred 2-char code
         end
     else
-        len == 0 || throw(ArgumentError("no language exensions allowed '$x-$extlang'"))
+        len == 0 || throw(ArgumentError("no language exensions allowed '$x-$(join(extlang, '-'))'"))
     end
     Symbol(x)
 end
@@ -102,6 +104,7 @@ function is_langext(x::AS)
 end
 
 function check_script(x::AS)
+    is_script(x) || length(x) == 0 || throw(ArgumentError("no script '$x'")) 
     Symbol(x)
 end
 
@@ -111,6 +114,7 @@ function is_script(x::AS)
 end
 
 function check_region(x::AS)
+    is_region(x) || length(x) == 0 || throw(ArgumentError("no region '$x'"))
     Symbol(x)
 end
 
@@ -119,8 +123,9 @@ function is_region(x::AS)
     ( len == 2 && is_alpha(x) ) || ( len == 3 && is_digit(x) )
 end
 
-function check_variant(vari::Vector{String})
-    Symbol.(vari)
+function check_variant(x::Vector{String})
+    all(is_variant, x) || throw(ArgumentError("no variants '$(join(x, '-'))'")) 
+    Symbol.(x)
 end
 
 function is_variant(x::AS)
@@ -164,11 +169,11 @@ function splitlangtag(x::AS)
         k += 1
     end
     if k <= n && is_script(token[k])
-        scri = titlecase(token[k])
+        scri = token[k]
         k += 1
     end
     while k <= n && is_region(token[k])
-        regi = uppercase(token[k])
+        regi = token[k]
         k += 1
     end
     while k <= n && is_variant(token[k])
@@ -188,7 +193,7 @@ function splitlangtag(x::AS)
         exte[sing] = ext
     end
 
-    k > n || x == "" || throw(ArgumentError("no language tag: '$x' after $(k-1) "))
+    k > n || x == "" || throw(ArgumentError("no language tag: '$x' after $(k-1)"))
     length(langex) <= 3 || throw(ArgumentError("too many language extensions '$x'"))
 
     lang, langex, scri, regi, vari, exte
@@ -265,64 +270,64 @@ end
 const CACHE = Dict{Key, Locale}()
 
     # Useful constant for language.
-    const ENGLISH = Locale("en", "");
+    const ENGLISH = Locale("en", "")
 
     # Useful constant for language.
-    const FRENCH = Locale("fr", "");
+    const FRENCH = Locale("fr", "")
 
     # Useful constant for language.
-    const GERMAN = Locale("de", "");
+    const GERMAN = Locale("de", "")
 
     # Useful constant for language.
-    const ITALIAN = Locale("it", "");
+    const ITALIAN = Locale("it", "")
 
     # Useful constant for language.
-    const JAPANESE = Locale("ja", "");
+    const JAPANESE = Locale("ja", "")
 
     # Useful constant for language.
-    const KOREAN = Locale("ko", "");
+    const KOREAN = Locale("ko", "")
 
     # Useful constant for language.
-    const CHINESE = Locale("zh", "");
+    const CHINESE = Locale("zh", "")
 
     # Useful constant for language.
-    const SIMPLIFIED_CHINESE = Locale("zh", "CN");
+    const SIMPLIFIED_CHINESE = Locale("zh", "CN")
 
     # Useful constant for language.
-    const TRADITIONAL_CHINESE = Locale("zh", "TW");
+    const TRADITIONAL_CHINESE = Locale("zh", "TW")
 
     # Useful constant for country.
-    const FRANCE = Locale("fr", "FR");
+    const FRANCE = Locale("fr", "FR")
 
     # Useful constant for country.
-    const GERMANY = Locale("de", "DE");
+    const GERMANY = Locale("de", "DE")
 
     # Useful constant for country.
-    const ITALY = Locale("it", "IT");
+    const ITALY = Locale("it", "IT")
 
     # Useful constant for country.
-    const JAPAN = Locale("ja", "JP");
+    const JAPAN = Locale("ja", "JP")
 
     # Useful constant for country.
-    const KOREA = Locale("ko", "KR");
+    const KOREA = Locale("ko", "KR")
 
     # Useful constant for country.
-    const CHINA = SIMPLIFIED_CHINESE;
+    const CHINA = SIMPLIFIED_CHINESE
 
     # Useful constant for country.
-    const PRC = SIMPLIFIED_CHINESE;
+    const PRC = SIMPLIFIED_CHINESE
 
     # Useful constant for country.
-    const TAIWAN = TRADITIONAL_CHINESE;
+    const TAIWAN = TRADITIONAL_CHINESE
 
     # Useful constant for country.
-    const UK = Locale("en", "GB");
+    const UK = Locale("en", "GB")
 
     # Useful constant for country.
-    const US = Locale("en", "US");
+    const US = Locale("en", "US")
 
     # Useful constant for country.
-    const CANADA = Locale("en", "CA");
+    const CANADA = Locale("en", "CA")
 
 """
 
@@ -333,7 +338,7 @@ language, country, and variant are empty ("") strings.  This is regarded
 as the base locale of all locales, and is used as the language/country
 neutral locale for the locale sensitive operations. 
 """
-const ROOT = Locale("", "");
+const ROOT = Locale("", "")
 const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
 
 """
@@ -398,7 +403,17 @@ function posix_locale(category::String)
     if ! startswith(s, "LC_")
         s = s == "LANG" ? s : "LC_" * s
     end
-    get(ENV, "LC_ALL", get(ENV, s, get(ENV, "LANG", "")))
+    get2("LC_ALL") do
+        get2(s) do
+            get(ENV, "LANG", "")
+        end
+    end
+end
+
+# treat empty value 
+function get2(f::Function, k::Any)
+    v = get(ENV, k, "")
+    v == "" ? f() : v
 end
 
 """
