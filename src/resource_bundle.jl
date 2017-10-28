@@ -13,11 +13,17 @@ struct ResourceBundle{T}
     name::String
     typ::Type
     cache::Dict{Locale,Cache{T}}
-    ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T = 
+    function ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T
+        println("path: '$path'")
         new(path, string(name), typ, Dict{Locale,Cache{T}}())
+    end
 end
 
-ResourceBundle(mod::Module, name::AbstractString) = ResourceBundle{String}(resource_path(mod), name, String)
+function ResourceBundle(mod::Module, name::AbstractString)
+    println("ResourceBundle for module $mod")
+    ResourceBundle{String}(resource_path(mod), name, String)
+end
+
 ResourceBundle(mod::Module, name::AbstractString, T::Type) = ResourceBundle{T}(resource_path(mod), name, T)
 
 SEP = '_'
@@ -29,7 +35,7 @@ JENDL = length(JEND)
     resource_path(module) -> String
 
 Return absolute path name of resource directory for a module.
-If no module directory is found, return `"$JULIA_HOME/../../resources"`.
+If no module directory is found, return `"JULIA_HOME/../../resources"`.
 """
 function resource_path(mod::Module)
     source = Base.find_in_path(string(module_name(mod)))
@@ -148,15 +154,12 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
     if !isempty(rlist)
         cache.list = setdiff(flist, rlist)
     end
-    if val == nothing && isa(default,T)
-        val = default
-    end
     val
 end
 
 function get(bundle::ResourceBundle{T}, loc::Locale, key::String, default::T) where {T}
     x = get(bundle, loc, key)
-    ifelse(x == nothing, default, key)
+    ifelse(x == nothing, default, x)
 end
 
 get_locale() = Locales.locale(:MESSAGES)
@@ -188,7 +191,7 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
     unique(Iterators.flatten(dlist))
 end
 
-Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locale())
+Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locales.BOTTOM)
 
 # select all potential source dictionaries for given locale. 
 function initcache!(bundle::ResourceBundle, loc::Locale)

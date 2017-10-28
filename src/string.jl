@@ -78,8 +78,10 @@ function translate(p::AbstractString, locale::Any)
     translate2(s1, locale, ex1, arg)
 end
 
-function translate2(s1::AbstractString, locale::Any, ex1::Any, arg)    
-    s2 = lookup(locale, s1)
+function translate2(s1::AbstractString, mb::ResourceBundle, ex1::Any, arg)    
+    println("looking up '$s1' path: '$(mb.path)/$(mb.name)' loc: $(ResourceBundles.get_locale())")
+    s2 = get(mb, s1, s1)
+    println("returning '$s2'")
     ex2, ind2, dummy2 = string2ex(s2, arg)
     if length(ind2) > 0
         m1, m2 = extrema(ind2)
@@ -91,11 +93,13 @@ end
 translate(p::AbstractString) = translate(p, default_locale_messages())
 
 macro tr_str(p)
-    #esc(translate(p))
+    if !isdefined(__module__, :MESSAGE_BUNDLE)
+        mb = eval(__module__, :(MESSAGE_BUNDLE = ResourceBundle($__module__, "messages")))
+    else
+        mb = __module__.MESSAGE_BUNDLE
+    end
     ex1, arg, s1 = string2ex(p)
     arg = Expr(:tuple, arg...)
-    :(eval(translate2($s1, default_locale_messages(), $ex1, $(esc(arg)))))
+    :(eval(translate2($s1, $mb, $ex1, $(esc(arg)))))
 end
-
-
 

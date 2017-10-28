@@ -1,16 +1,13 @@
 module ResourceBundles
 
 export Locales, Locale
-#export ParserCombinator
 export ResourceBundles, ResourceBundle
+export @tr_str
 
-# include("locale_iso_data.jl")
 include("locale.jl")
 
 const Locale = Locales.Locale
 
-# include("parser_combinator.jl")
-# include("parse_langtag.jl")
 include("resource_bundle.jl")
 
 include("string.jl")

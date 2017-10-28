@@ -113,4 +113,6 @@ ENV["LC_TIME"] = ""
 delete!(ENV, "LC_MONETARY")
 ENV["LANG"] = "fr_FR@guadelo"
 @test Locales.default_locale(:TIME) === Locale("fr-FR-x-posix-guadelo")
+ENV["LANG"] = "C"
+@test Locales.default_locale(:TIME) === Locale("C")
 

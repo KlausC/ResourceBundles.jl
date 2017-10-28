@@ -366,7 +366,7 @@ supported categories of `locale`.
 function set_locale!(category::Symbol, loc::Locale)
     for cat in keys(CURRENT_LOCALES.dict)
         if cat == category || category == :ALL
-            CURRENT_LOCALES[cat] = loc
+            CURRENT_LOCALES.dict[cat] = loc
         end
     end
     category == :ALL ? loc : locale(category)
