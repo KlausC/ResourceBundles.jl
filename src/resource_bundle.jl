@@ -14,13 +14,11 @@ struct ResourceBundle{T}
     typ::Type
     cache::Dict{Locale,Cache{T}}
     function ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T
-        println("path: '$path'")
         new(path, string(name), typ, Dict{Locale,Cache{T}}())
     end
 end
 
 function ResourceBundle(mod::Module, name::AbstractString)
-    println("ResourceBundle for module $mod")
     ResourceBundle{String}(resource_path(mod), name, String)
 end
 
