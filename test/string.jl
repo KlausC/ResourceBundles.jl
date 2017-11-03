@@ -1,8 +1,7 @@
 module X
 module ResourceBundles
 using ResourceBundles
-using Test
-
+if VERSION <= v"0.7-DEV" using Base.Test else using Test end
 const a1 = "arg1"
 const a2 = "arg2"
 const a3 = 4711

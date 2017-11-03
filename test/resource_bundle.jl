@@ -1,6 +1,6 @@
 using ResourceBundles
 
-bundle = ResourceBundle(ResourceBundles, "messages", Any)
+bundle = ResourceBundle(ResourceBundles, "messages")
 
 const results = Dict(
     (Locale(""), "T0") => "T0",
@@ -75,3 +75,15 @@ logging(io, kind = :warn)
     warn = String(take!(io))
     @test contains(warn, w)
 end
+
+take!(io)
+@test sort(keys(bundle, Locale(""))) == ["T1", "T2", "T3", "T4", "T5"]
+@test String(take!(io)) == ""
+@test sort(keys(bundle, Locale("de-us"))) == ["T1", "T2", "T3", "T4", "T5"]
+@test contains(String(take!(io)), "Wrong type 'Dict{Int64,Int64}'")
+@test sort(keys(bundle, Locale("de-us-america"))) == ["T1", "T2", "T3", "T4", "T5"]
+@test contains(String(take!(io)), "Wrong type 'String'")
+@test sort(keys(bundle, Locale("de-us-america-x-1"))) == ["T1", "T2", "T3", "T4", "T5"]
+@test contains(String(take!(io)), "Wrong type 'Void'")
+
+

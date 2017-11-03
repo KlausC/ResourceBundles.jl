@@ -24,26 +24,34 @@ using ResourceBundles.Locales
 @test string(Locale("DE_latn_de-b-22-a-uu-11")) == "de-Latn-DE-a-uu-11-b-22"
 @test string(Locale("DE_latn_de-z-22-a-uu-11")) == "de-Latn-DE-a-uu-11-z-22"
 
+@test string(Locale("zh-han")) == "han"
+@test string(Locale("deu")) == "de"
+
+@test Locale("en-a-aa-b-bb") ⊆ Locale("en-b-bb")
+@test hash(Locale("is-a-aa-b-bb")) == hash(Locale("is-b-bb-a-aa"))
+@test Locale("is-a-aa-b-bb") === Locale("is-b-bb-a-aa")
+@test Locale("C") === Locale("")
+
 # exceptions
 create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}()) =
     Locales.create(l, lex, s, r, v, d)
 
-@test_throws ArgumentError("missing language prefix") Locale("a-ab")
-@test_throws ArgumentError("no language prefix 'a'") Locale("a", "")
-@test_throws ArgumentError("only one language extension allowed 'de-abc-def'") Locale("de-abc-def")
-@test_throws ArgumentError("no language exensions allowed 'abcd-def'") create2("abcd", ["def"])
-@test_throws ArgumentError("no script 'Abc'") Locale("ab", "abc", "de")
-@test_throws ArgumentError("no region 'DEF'") Locale("ab", "abcd", "def")
-@test_throws ArgumentError("no variants 'vari'") create2("ab", String[], "", "", ["vari"])
-@test_throws ArgumentError("no variants '1va'") create2("ab", String[], "", "", ["1va"])
-@test_throws ArgumentError("no variants 'asdfghjkl'") create2("ab", String[], "", "", ["asdfghjkl"])
-@test_throws ArgumentError("no variants '1990-asdfghjkl'") create2("ab", String[], "", "", ["1990", "asdfghjkl"])
-@test_throws ArgumentError("language tag contains invalid characters: 'Ä'") Locale("Ä")
-@test_throws ArgumentError("multiple occurrence of singleton 'u'") Locale("en-u-u1-u-u2")
-@test_throws ArgumentError("no language tag: 'en-asdfghjkl' after 1") Locale("en-asdfghjkl")
-@test_throws ArgumentError("no language tag: 'asdfghjkl' after 0") Locale("asdfghjkl")
-@test_throws ArgumentError("no language tag: 'x-asdfghjkl' after 1") Locale("x-asdfghjkl")
-@test_throws ArgumentError("too many language extensions 'en-abc-def-ghi-jkl'") Locale("en-abc-def-ghi-jkl")
+@test_throws ArgumentError#=("missing language prefix")=# Locale("a-ab")
+@test_throws ArgumentError#=("no language prefix 'a'")=# Locale("a", "")
+@test_throws ArgumentError#=("only one language extension allowed 'de-abc-def'")=# Locale("de-abc-def")
+@test_throws ArgumentError#=("no language exensions allowed 'abcd-def'")=# create2("abcd", ["def"])
+@test_throws ArgumentError#=("no script 'Abc'")=# Locale("ab", "abc", "de")
+@test_throws ArgumentError#=("no region 'DEF'")=# Locale("ab", "abcd", "def")
+@test_throws ArgumentError#=("no variants 'vari'")=# create2("ab", String[], "", "", ["vari"])
+@test_throws ArgumentError#=("no variants '1va'")=# create2("ab", String[], "", "", ["1va"])
+@test_throws ArgumentError#=("no variants 'asdfghjkl'")=# create2("ab", String[], "", "", ["asdfghjkl"])
+@test_throws ArgumentError#=("no variants '1990-asdfghjkl'")=# create2("ab", String[], "", "", ["1990", "asdfghjkl"])
+@test_throws ArgumentError#=("language tag contains invalid characters: 'Ä'")=# Locale("Ä")
+@test_throws ArgumentError#=("multiple occurrence of singleton 'u'")=# Locale("en-u-u1-u-u2")
+@test_throws ArgumentError#=("no language tag: 'en-asdfghjkl' after 1")=# Locale("en-asdfghjkl")
+@test_throws ArgumentError#=("no language tag: 'asdfghjkl' after 0")=# Locale("asdfghjkl")
+@test_throws ArgumentError#=("no language tag: 'x-asdfghjkl' after 1")=# Locale("x-asdfghjkl")
+@test_throws ArgumentError#=("too many language extensions 'en-abc-def-ghi-jkl'")=# Locale("en-abc-def-ghi-jkl")
 
 #various constructors
 @test Locale() === Locales.BOTTOM

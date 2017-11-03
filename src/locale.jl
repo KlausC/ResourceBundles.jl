@@ -203,7 +203,6 @@ end
 is_alpha(x::AS) = all(isalpha, x)
 is_digit(x::AS) = all(isdigit, x)
 is_alnum(x::AS) = all(isalnum, x)
-is_ascii(x::AS) = all(isascii, x)
 is_alnumsep(x::AS) = all(c->isascii(c) && ( isalnum(c) || c in "-_.@" ), x)
 
 # equality

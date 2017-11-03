@@ -19,7 +19,7 @@ struct ResourceBundle{T}
 end
 
 function ResourceBundle(mod::Module, name::AbstractString)
-    ResourceBundle{String}(resource_path(mod), name, String)
+    ResourceBundle{Any}(resource_path(mod), name, Any)
 end
 
 ResourceBundle(mod::Module, name::AbstractString, T::Type) = ResourceBundle{T}(resource_path(mod), name, T)
@@ -77,6 +77,23 @@ function findfiles!(bundle::ResourceBundle{T}, loc::Locale) where {T}
     Cache(collect(loc => flist[loc] for loc in locs), Dict{LocalePattern,Dict{String,T}}())
 end
 
+if VERSION <= v"0.7-DEV"
+function Base.nextind(a, n, k)
+    while k > 0
+        n = nextind(a, n)
+        k -= 1
+    end
+    n
+end
+function Base.prevind(a, n, k)
+    while k > 0
+        n = prevind(a, n)
+        k -= 1
+    end
+    n
+end
+end
+
 # derive locale pattern from file path
 function locale_pattern(f::AbstractString, name::AbstractString)
     if startswith(f, name) && endswith(f, JEND)
@@ -114,10 +131,10 @@ function load_file(f::AbstractString, T::Type)
         if el[1] <: String && el[2] <: T
             dict = d
         else
-            error("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
+            warn("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
         end
     else
-        error("Loaded object has type $(typeof(d)) not a dictionary")
+        warn("Wrong type '$(typeof(d))' loaded from '$f' is not a dictionary")
     end
     dict
 end
