@@ -5,6 +5,8 @@ Dict(
      "T6" => "T6 - en_US",
      "T7" => "T7 - en_US",
      raw"original $(1)($(2)) : $(3)" => raw"US version $(3) / $(2) $(1)",
-     raw"This is $(1) house" => raw"This is $(1 => :a) house\nThese are $(Any) houses\nThis is not a house $(0=>\"!\")",
+     raw"This is $(1) house" => [raw"""This is $(1 => "a") house""",
+                                 raw"""This is not a house $(0=>"!")""",
+                                 raw"""These are $(Any) houses""",]
 
     )

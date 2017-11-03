@@ -17,16 +17,18 @@ Locales.set_locale!(:MESSAGES, Locale("en-us"))
 @test tr"original $a1($a2) : $(a3*2)" == "US version $(a3*2) / $a2 $a1"
 
 
-@test trn"This is $h1 house" == "This is 1 house"
-@test trn"This is $hmany house" == "These are $(hmany) houses"
-@test trn"This is $(0) house" == "This is no house"
+@test tr"This is $h1 house" == "This is a house"
+@test tr"This is $hmany house" == "These are $(hmany) houses"
+@test tr"This is $(0) house" == "This is not a house !"
+@test tr"This is $(hmany-hmany) house" == "This is not a house !"
 
 Locales.set_locale!(:MESSAGES, Locale("fr"))
 @test tr"original $a1($a2) : $(a3*2)" == "original $a1($a2) : $(a3*2)"
 
-@test trn"This is $(1) house" == "C'est une maison"
-@test trn"This is $(42) house" == "Ce sont beaucoup($hmany) de maisons"
-@test trn"This is $h0 house" == "Ce n'est pas une maison"
+@test tr"This is $(1) house" == "C'est une maison"
+@test tr"This is $(hmany*3+3) house" == "Ce sont beaucoup(42) de maisons"
+@test tr"This is $(10) house" == "Ce sont beaucoup(10) de maisons"
+@test tr"This is $h0 house" == "Ce n'est pas une maison"
 
 end # module
 end # module

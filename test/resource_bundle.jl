@@ -1,6 +1,6 @@
 using ResourceBundles
 
-bundle = ResourceBundle(ResourceBundles, "messages")
+bundle = ResourceBundle(ResourceBundles, "messages", Any)
 
 const results = Dict(
     (Locale(""), "T0") => "T0",

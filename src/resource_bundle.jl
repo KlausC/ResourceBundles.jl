@@ -29,6 +29,8 @@ SEP2 = '-'
 JEND = ".jl"
 JENDL = length(JEND)
 
+basefind = VERSION >= v"0.7.0-DEV.2385" ? Base.find_package : Base.find_in_path
+
 """
     resource_path(module) -> String
 
@@ -36,7 +38,7 @@ Return absolute path name of resource directory for a module.
 If no module directory is found, return `"JULIA_HOME/../../resources"`.
 """
 function resource_path(mod::Module)
-    source = Base.find_in_path(string(module_name(mod)))
+    source = basefind(string(module_name(mod)))
     normpath(joinpath(source == nothing ? JULIA_HOME : source, "..", "..", "resources"))
 end
 
@@ -112,8 +114,10 @@ function load_file(f::AbstractString, T::Type)
         if el[1] <: String && el[2] <: T
             dict = d
         else
-            warn("Wrong type $el of dictionary loaded from '$f'")
+            error("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
         end
+    else
+        error("Loaded object has type $(typeof(d)) not a dictionary")
     end
     dict
 end
@@ -135,7 +139,7 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
     xloc = Locale("")
     val = nothing
     for (locpa, path) in flist
-        dict = ensure_dict!(cache, locpa, path, T, rlist)
+        dict = ensure_dict!(bundle, cache, locpa, path, T, rlist)
         if dict != nothing && haskey(dict, key)
             if val == nothing
                 xloc = locpa
@@ -178,7 +182,7 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
     rlist = Vector()
     val = nothing
     for (locpa, path) in flist
-        dict = ensure_dict!(cache, locpa, path, T, rlist)
+        dict = ensure_dict!(bundle, cache, locpa, path, T, rlist)
         if dict != nothing
             push!(dlist, keys(dict))
         end
@@ -199,11 +203,14 @@ function initcache!(bundle::ResourceBundle, loc::Locale)
 end
 
 # load all entries from one dictionary file-
-function ensure_dict!(cache::Cache, locpa::LocalePattern, path::String, T::Type, rlist::Vector)
+function ensure_dict!(bundle::ResourceBundle, cache::Cache, locpa::LocalePattern, path::String, T::Type, rlist::Vector)
     if haskey(cache.dict, locpa)
         dict = cache.dict[locpa]
     else
-        dict = load_file(path, T)
+        dict = get_dict(bundle, locpa)
+        if dict == nothing
+            dict = load_file(path, T)
+        end
         if dict != nothing
             cache.dict[locpa] = dict
         else
@@ -211,5 +218,14 @@ function ensure_dict!(cache::Cache, locpa::LocalePattern, path::String, T::Type,
         end
     end
     dict
+end
+
+function get_dict(bundle::ResourceBundle, locpa::LocalePattern)
+    for cache in values(bundle.cache)
+        if haskey(cache.dict, locpa)
+            return cache.dict[locpa]
+        end
+    end
+    nothing
 end
 
