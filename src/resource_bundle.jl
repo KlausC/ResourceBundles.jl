@@ -77,23 +77,6 @@ function findfiles!(bundle::ResourceBundle{T}, loc::Locale) where {T}
     Cache(collect(loc => flist[loc] for loc in locs), Dict{LocalePattern,Dict{String,T}}())
 end
 
-if VERSION <= v"0.7-DEV"
-function Base.nextind(a, n, k)
-    while k > 0
-        n = nextind(a, n)
-        k -= 1
-    end
-    n
-end
-function Base.prevind(a, n, k)
-    while k > 0
-        n = prevind(a, n)
-        k -= 1
-    end
-    n
-end
-end
-
 # derive locale pattern from file path
 function locale_pattern(f::AbstractString, name::AbstractString)
     if startswith(f, name) && endswith(f, JEND)
@@ -170,9 +153,7 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
             end
         end
     end
-    if !isempty(rlist)
-        cache.list = setdiff(flist, rlist)
-    end
+    clean_cache_list(cache, rlist)
     val
 end
 
@@ -182,7 +163,6 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String, default::T) wh
 end
 
 get_locale() = Locales.locale(:MESSAGES)
-get(bundle::ResourceBundle, key::String) = get(bundle, get_locale(), key)
 get(bundle::ResourceBundle{T}, key::String, default::T) where {T} = get(bundle, get_locale(), key, default)
 
 import Base.keys
@@ -204,13 +184,18 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
             push!(dlist, keys(dict))
         end
     end
-    if !isempty(rlist)
-        cache.list = setdiff(flist, rlist)
-    end
+    clean_cache_list(cache, rlist)
     unique(Iterators.flatten(dlist))
 end
 
 Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locales.BOTTOM)
+
+#remove unused files from cache list
+function clean_cache_list(cache::Cache, rlist::Vector)
+    if !isempty(rlist)
+        cache.list = setdiff(cache.list, rlist)
+    end
+end
 
 # select all potential source dictionaries for given locale. 
 function initcache!(bundle::ResourceBundle, loc::Locale)

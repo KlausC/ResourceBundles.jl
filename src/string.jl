@@ -73,10 +73,10 @@ end
 function _searchindex(a::Vector, n::Integer)
     k = 1
     while k <= length(a)
-        a[k] == n && return k
+        a[k] == n && break
         k += 1
     end
-    0
+    k
 end
 
 function _verify_multiplicity(n::Integer, ex::Any)
