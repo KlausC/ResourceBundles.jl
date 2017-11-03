@@ -13,9 +13,14 @@ const hmany = 13
 logging()
 
 Locales.set_locale!(:MESSAGES, Locale("en-us"))
+@test tr"T3" == "T3 - en_US"
 @test tr"original $a1($a2) : $(a3*2)" == "US version $(a3*2) / $a2 $a1"
 
+# test with plural forms
+@test_throws ArgumentError tr"error1"
+@test_throws ArgumentError tr"error2 $(1)"
 
+@test tr"missing argument value $(99)" == "missing argument value 99"
 @test tr"This is $h1 house" == "This is a house"
 @test tr"This is $hmany house" == "These are $(hmany) houses"
 @test tr"This is $(0) house" == "This is not a house !"

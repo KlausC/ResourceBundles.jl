@@ -7,6 +7,9 @@ Dict(
      raw"original $(1)($(2)) : $(3)" => raw"US version $(3) / $(2) $(1)",
      raw"This is $(1) house" => [raw"""This is $(1 => "a") house""",
                                  raw"""This is not a house $(0=>"!")""",
-                                 raw"""These are $(Any) houses""",]
+                                 raw"""These are $(Any) houses""",],
 
+     "error1" => ["error1 $(1)"],
+     raw"error2 $(1)" => ["error2a", "error2b"],
+     raw"missing argument value $(1)" => [raw"missing1 $(1)", raw"missing98 $(98)"],
     )

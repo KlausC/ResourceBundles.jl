@@ -143,11 +143,8 @@ Parse language tag and convert to Symbols and collections of Symbols.
 """
 function splitlangtag(x::AS)
     is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
-    if x == "C"
-        x = ""
-    end
-    x = replace(lowercase(x), '_', SEP) # normalize input
     x = transform_posix_to_iso(x) # handle and replace '.' and '@'.
+    x = replace(lowercase(x), '_', SEP) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
     token = split(x, SEP, keep=true)
     lang = ""
@@ -215,7 +212,7 @@ function ==(x::Locale, y::Locale)
     x.extensions == y.extensions
 end
 
-function hash(x::Locale, h::Int)
+function hash(x::Locale, h::UInt)
     hash(x.extensions, hash(x.variants, hash(x.region, hash(x.script, hash(x.language, h)))))
 end
 
