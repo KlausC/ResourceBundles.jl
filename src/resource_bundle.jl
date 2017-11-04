@@ -47,16 +47,20 @@ the usual case for user defined modules.
 function resource_path(mod::Module, name::AbstractString)
     mp = module_path(mod)
     mp1 = string(mp[1])
-    idx, base = mp[1] == :Main ? (2, ".") : (1, module_path(mp1))
+    idx, base = mp[1] == :Main ? (2, pwd()) : (1, module_path(mp1))
     n = length(mp)
     path = "."
-    prefix = normpath(base, idx <= n ? string(mp[idx]) : "", RESOURCES)
+    modpart = idx <= n ? string(mp[idx]) : ""
+    prefix = normpath(base, modpart, RESOURCES)
+    println("module: '$mod' name: '$name' idx $idx mp1: '$mp1' prefix: '$prefix'")
     if is_resourcepath(prefix, name)
         path = prefix
+        println("path: '$path'")
         for i = idx+1:n
             prefix = joinpath(prefix, string(mp[i]))
             if is_resourcepath(prefix, name)
                 path = prefix
+                println("path: '$path'")
             end
         end         
     end
@@ -88,14 +92,17 @@ end
 """
     is_resource_dir(path, name)
 
-Check if directory `path` contains subdirectory `name` or a file like `name_*`.
+Check if directory `path` contains subdirectory `name` or a file `name_*` or `name.jl`.
 Path may be relative or absolute. Name may be string or symbol.
 """
 function is_resourcepath(path::AbstractString, name::AbstractString)
     isdir(path) || return false
     isdir(joinpath(path, string(name))) && return true
     stp = name * SEP
-    any(f -> startswith(f, stp) && isfile(f), readdir(path))
+    stq = name * JEND
+    res = any(f -> ( startswith(f, stp) || f == stq ), readdir(path))
+    println("stp: '$stp' stq: '$stq' any($(readdir(path))) res: $res")
+    res
 end
 
 """

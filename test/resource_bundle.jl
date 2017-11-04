@@ -2,6 +2,17 @@ using ResourceBundles
 
 bundle = ResourceBundle(@__MODULE__, "messages")
 
+bundle2 = ResourceBundle(ResourceBundles, "bundle")
+
+bundle3 = ResourceBundle(ResourceBundles, "does_not_exist")
+
+bundle4 = ResourceBundle(Test, "xxx")
+
+@test bundle.path == "$(joinpath(pwd(),"resources"))"
+@test bundle2.path == "$(Pkg.dir("ResourceBundles", "resources"))"
+@test bundle3.path == "."
+@test bundle4.path == "."
+
 const results = Dict(
     (Locale(""), "T0") => "T0",
     (Locale(""), "T1") => "T1 - empty",
