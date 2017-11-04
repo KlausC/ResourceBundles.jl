@@ -52,15 +52,12 @@ function resource_path(mod::Module, name::AbstractString)
     path = "."
     modpart = idx <= n ? string(mp[idx]) : ""
     prefix = normpath(base, modpart, RESOURCES)
-    println("module: '$mod' name: '$name' idx $idx mp1: '$mp1' prefix: '$prefix'")
     if is_resourcepath(prefix, name)
         path = prefix
-        println("path: '$path'")
         for i = idx+1:n
             prefix = joinpath(prefix, string(mp[i]))
             if is_resourcepath(prefix, name)
                 path = prefix
-                println("path: '$path'")
             end
         end         
     end
@@ -83,7 +80,7 @@ function module_path(name)
         warn("module '$name' has same name as stdlib module")
     end
     if !is1 && !is2
-        error("module '$name' not found in '$path1' or '$path2'")
+        warn("module '$name' not found in '$path1' or '$path2'")
     end
     splitdir(is2 ? path2 : path1)[1]
 end
@@ -101,7 +98,6 @@ function is_resourcepath(path::AbstractString, name::AbstractString)
     stp = name * SEP
     stq = name * JEND
     res = any(f -> ( startswith(f, stp) || f == stq ), readdir(path))
-    println("stp: '$stp' stq: '$stq' any($(readdir(path))) res: $res")
     res
 end
 

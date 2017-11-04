@@ -42,11 +42,15 @@ function _translate(s1::AbstractString, s2::AbstractString, ex1::Any, arg)
 end
 
 function tr_macro_impl(::LineNumberNode, __module__::Module, p::Any)
-    mb = _messages_variable(__module__)
     ex1, arg, s1 = _string2ex(p)
-    s2 = get(mb, s1, s1)
     arg = Expr(:tuple, arg...)
-    :(eval(_translate($s1, $s2, $ex1, $(esc(arg)))))
+    :(eval(translate($s1, $__module__, $ex1, $(esc(arg)))))
+end
+
+function translate(s1::AbstractString, mod::Module, ex1, arg)
+    mb = _messages_variable(mod)
+    s2 = get(mb, s1, s1)
+    _translate(s1, s2, ex1, arg)
 end
 
 macro tr_str(p)
