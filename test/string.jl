@@ -1,7 +1,6 @@
-module X
-module ResourceBundles
 using ResourceBundles
 if VERSION <= v"0.7-DEV" using Base.Test else using Test end
+
 const a1 = "arg1"
 const a2 = "arg2"
 const a3 = 4711
@@ -34,5 +33,3 @@ Locales.set_locale!(:MESSAGES, Locale("fr"))
 @test tr"This is $(10) house" == "Ce sont beaucoup(10) de maisons"
 @test tr"This is $h0 house" == "Ce n'est pas une maison"
 
-end # module
-end # module

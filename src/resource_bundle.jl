@@ -19,27 +19,99 @@ struct ResourceBundle{T}
 end
 
 function ResourceBundle(mod::Module, name::AbstractString)
-    ResourceBundle{Any}(resource_path(mod), name, Any)
+    ResourceBundle{Any}(resource_path(mod, name), name, Any)
 end
 
-ResourceBundle(mod::Module, name::AbstractString, T::Type) = ResourceBundle{T}(resource_path(mod), name, T)
+function ResourceBundle(mod::Module, name::AbstractString, T::Type) 
+    ResourceBundle{T}(resource_path(mod, name), name, T)
+end
 
 SEP = '_'
 SEP2 = '-'
 JEND = ".jl"
 JENDL = length(JEND)
+RESOURCES = "resources"
 
 basefind = VERSION >= v"0.7.0-DEV.2385" ? Base.find_package : Base.find_in_path
 
 """
     resource_path(module) -> String
 
-Return absolute path name of resource directory for a module.
-If no module directory is found, return `"JULIA_HOME/../../resources"`.
+Return path name of resource directory for a module.
+If top module is `Main` the path is relative to the current working directory.
+If `JULIA_HOME/../../stdlib/<module-names>/resources` is a directory, we assume
+the resources of a module in the standard library.
+Otherwise the directory `Pkg.dir()/<module-names>/resources` is selected; that is
+the usual case for user defined modules.
 """
-function resource_path(mod::Module)
-    source = basefind(string(module_name(mod)))
-    normpath(joinpath(source == nothing ? JULIA_HOME : source, "..", "..", "resources"))
+function resource_path(mod::Module, name::AbstractString)
+    mp = module_path(mod)
+    mp1 = string(mp[1])
+    idx, base = mp[1] == :Main ? (2, ".") : (1, module_path(mp1))
+    n = length(mp)
+    path = "."
+    prefix = normpath(base, idx <= n ? string(mp[idx]) : "", RESOURCES)
+    if is_resourcepath(prefix, name)
+        path = prefix
+        for i = idx+1:n
+            prefix = joinpath(prefix, string(mp[i]))
+            if is_resourcepath(prefix, name)
+                path = prefix
+            end
+        end         
+    end
+    path
+end
+
+"""
+    module_path(mod)
+
+Return installation directory for module `mod`.
+"""
+
+function module_path(name)
+    name = string(name)
+    path1 = normpath(JULIA_HOME, "..", "..", "stdlib", name)
+    path2 = Pkg.dir(name)
+    is1 = isdir(path1)
+    is2 = isdir(path2)
+    if is1 && is2
+        warn("module '$name' has same name as stdlib module")
+    end
+    if !is1 && !is2
+        error("module '$name' not found in '$path1' or '$path2'")
+    end
+    splitdir(is2 ? path2 : path1)[1]
+end
+
+
+"""
+    is_resource_dir(path, name)
+
+Check if directory `path` contains subdirectory `name` or a file like `name_*`.
+Path may be relative or absolute. Name may be string or symbol.
+"""
+function is_resourcepath(path::AbstractString, name::AbstractString)
+    isdir(path) || return false
+    isdir(joinpath(path, string(name))) && return true
+    stp = name * SEP
+    any(f -> startswith(f, stp) && isfile(f), readdir(path))
+end
+
+"""
+    module_path(mod::Module)
+
+Return the list of module names of a module hierarchy.
+Example: `Base.Iterators -> [:Main,:Base,:Iterators]`.
+"""
+module_path(mod::Module) = module_path(mod, Symbol[])
+function module_path(mod::Module, list::Vector{Symbol})
+    mn = module_name(mod)
+    if isempty(list) || mn != first(list)
+        unshift!(list, mn)
+        module_path(module_parent(mod), list)
+    end
+    list
 end
 
 """
@@ -108,6 +180,10 @@ function load_file(f::AbstractString, T::Type)
         d = include(f)
     catch ex
         warn(ex)
+    end
+
+    if isa(d, Union{Vector{T},NTuple{N,Pair},T} where {T<:Pair,N})
+        d = Dict(d)
     end
     if isa(d, Dict)
         el = eltype(d).parameters
