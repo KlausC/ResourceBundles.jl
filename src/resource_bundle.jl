@@ -87,12 +87,8 @@ function package_path(name) name = string(name)
     path2 = Pkg.dir(name)
     is1 = isdir(path1)
     is2 = isdir(path2)
-    if is1 && is2
-        warn("module '$name' has same name as stdlib module")
-    end
-    if !is1 && !is2
-        warn("module '$name' not found in '$path1' or '$path2'")
-    end
+    is1 && is2 && warn("module '$name' has same name as stdlib module")
+    !is1 && !is2 && warn("module '$name' not found in '$path1' or '$path2'")
     splitdir(is2 ? path2 : path1)[1]
 end
 

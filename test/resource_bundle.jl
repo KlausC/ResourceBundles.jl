@@ -100,9 +100,11 @@ take!(io)
 @test contains(String(take!(io)), "Wrong type 'String'")
 @test keys(bundle, Locale("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Void'")
+@test keys(bundle3, Locale("")) == String[]
 
 @test resource_bundle(@__MODULE__, "messages") === RB_messages
 @test resource_bundle(@__MODULE__, "bundle") === RB_bundle
+@test @resource_bundle("d1n2e").path == ""
 
 bundlea = @resource_bundle("bundle")
 @test bundlea === RB_bundle
