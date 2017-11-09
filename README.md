@@ -103,7 +103,7 @@ Conceptually it behaves like a `Dict{Tuple{String,Locale},Any}`.
 Each resource bundle is bound to a package. The corresponding data are stored in the
 subdirectory `resources` of the package directory.
 
-`bundle = ResourceBundle(@__MODULE__, "messages")` creates a resource bundle, which is bound
+`bundle = @resource_bundle("messages")` creates a resource bundle, which is bound
 to the current module.
 The resources are looked for the resources subdirectory of a package module or, if the
 base module is `Main`, in the current working directory.
@@ -113,7 +113,7 @@ Naming of locale-specific files. Fallback strategy if requested locale does not 
 
 ##### String Translations
 
-String translations make use of a current locale `(get_locale(:MESSAGES))` and a standard resource bundle `@__MODULE__.MESSAGES_BUNDLE`.
+String translations make use of a current locale `(get_locale(:MESSAGES))` and a standard resource bundle `@__MODULE__.RB_messages`.
 
 The macro `tr_str` allows the user to write texts in a standard locale and it is translated
 at runtime to a corresponding text in the current locale.
