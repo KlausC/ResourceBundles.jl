@@ -1,7 +1,7 @@
 module ResourceBundles
 
 export Locales, Locale
-export ResourceBundles, ResourceBundle
+export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
 export @tr_str, @trn_str
 
 include("locale.jl")

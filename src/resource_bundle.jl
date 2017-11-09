@@ -14,6 +14,8 @@ struct ResourceBundle{T}
     typ::Type
     cache::Dict{Locale,Cache{T}}
     function ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T
+        ( !isempty(name) && all(isalnum, name) ) ||
+            throw(ArgumentError("resource names require alphanumeric but is `$name`"))
         new(path, string(name), typ, Dict{Locale,Cache{T}}())
     end
 end
@@ -26,36 +28,46 @@ function ResourceBundle(mod::Module, name::AbstractString, T::Type)
     ResourceBundle{T}(resource_path(mod, name), name, T)
 end
 
-SEP = '_'
-SEP2 = '-'
-JEND = ".jl"
-JENDL = length(JEND)
-RESOURCES = "resources"
-
-basefind = VERSION >= v"0.7.0-DEV.2385" ? Base.find_package : Base.find_in_path
+const SEP = '_'
+const SEP2 = '-'
+const JEND = ".jl"          # extension of resource file
+const JENDL = length(JEND)
+const RESOURCES = "resources"   # name of subdirectory
+const JRB = "JULIA_RESOURCE_BASE" # enviroment variable
+const LOCALE_ID = ".LOCALE_ID"  # invisible key in resource dictionaries
 
 """
-    resource_path(module) -> String
+    resource_path(module, name) -> String
 
-Return path name of resource directory for a module.
-If top module is `Main` the path is relative to the current working directory.
-If `JULIA_HOME/../../stdlib/<module-names>/resources` is a directory, we assume
+Return path name of resource directory for a module containing data for `name`.
+If top module is `Main` the path is derived from enviroment `JULIA_RESOURCE_BASE`.
+If `JULIA_HOME/../../stdlib/<module>/resources` is a directory, we assume
 the resources of a module in the standard library.
-Otherwise the directory `Pkg.dir()/<module-names>/resources` is selected; that is
+Otherwise the directory `Pkg.dir()/<module>/resources` is selected; that is
 the usual case for user defined modules.
+Submodules may have specific resource files. They are located in subdirectories
+of the `resources` directory with path names corresponding to submodule name.
+example: Module `MyModule.X.Y` can store specific resource files in
+`.../MyModule/resources/X/Y`. If for a given name, no resources are found in the
+deepest directory, fallback to previous directory happens. In the example, the
+resources are searched first in `resources/X/Y`, then in `resources/X`, then in `resources`.
+Nevertheless the resources for one name are always taken from only one subdirectory.
 """
 function resource_path(mod::Module, name::AbstractString)
-    mp = module_path(mod)
+    mp = module_split(mod)
     mp1 = string(mp[1])
-    idx, base = mp[1] == :Main ? (2, pwd()) : (1, module_path(mp1))
+    if mp[1] == :Main
+        base = get(ENV, JRB, pwd())
+    else
+        base = normpath(package_path(mp1), mp1)
+    end
     n = length(mp)
     path = "."
-    modpart = idx <= n ? string(mp[idx]) : ""
-    prefix = normpath(base, modpart, RESOURCES)
+    prefix = normpath(base, RESOURCES)
     if is_resourcepath(prefix, name)
         path = prefix
-        for i = idx+1:n
-            prefix = joinpath(prefix, string(mp[i]))
+        for i = 2:n
+            prefix = joinpath(prefix, modname2file(mp[i]))
             if is_resourcepath(prefix, name)
                 path = prefix
             end
@@ -65,13 +77,12 @@ function resource_path(mod::Module, name::AbstractString)
 end
 
 """
-    module_path(mod)
+    package_path(mod)
 
 Return installation directory for module `mod`.
 """
 
-function module_path(name)
-    name = string(name)
+function package_path(name) name = string(name)
     path1 = normpath(JULIA_HOME, "..", "..", "stdlib", name)
     path2 = Pkg.dir(name)
     is1 = isdir(path1)
@@ -96,33 +107,32 @@ function is_resourcepath(path::AbstractString, name::AbstractString)
     isdir(path) || return false
     isdir(joinpath(path, string(name))) && return true
     stp = name * SEP
-    stq = name * JEND
-    res = any(f -> ( startswith(f, stp) || f == stq ), readdir(path))
+    res = any(f -> ( startswith(f, stp) || splitext(f) == (name, JEND) ), readdir(path))
     res
 end
 
 """
-    module_path(mod::Module)
+    module_split(mod::Module)
 
 Return the list of module names of a module hierarchy.
 Example: `Base.Iterators -> [:Main,:Base,:Iterators]`.
 """
-module_path(mod::Module) = module_path(mod, Symbol[])
-function module_path(mod::Module, list::Vector{Symbol})
+module_split(mod::Module) = module_split(mod, Symbol[])
+function module_split(mod::Module, list::Vector{Symbol})
     mn = module_name(mod)
     if isempty(list) || mn != first(list)
         unshift!(list, mn)
-        module_path(module_parent(mod), list)
+        module_split(module_parent(mod), list)
     end
     list
 end
 
 """
-    findfiles(bundle, locale) -> Locale => pathname
+    findfiles(bundle, locale) -> Cache 
 
-Produce list of pairs of locale patterns and pathnames of potential resource file,
-restricted to the given locale. The file names are all of the form
-`absfilename(path, name) * locpart * ".jl"`
+Produce cache object, which contains list of pairs of locale patterns and pathnames of
+potential resource file, restricted to the given locale. The file names are all of the form
+`absfilename(path, name) * locstring * ".jl"`
 where `locstring` is in the form of a locale-pattern, with locale-separators replaced by
 characters `_` or `/`.
 The list is sorted with most specific locale-pattern first. The list needs not be totally
@@ -132,18 +142,20 @@ Example: for `Locale("de-DE")`, the resource files could be `name_de_DE.jl` or
 `name_de/DE.jl` or `name/de_DE.jl` or `name/de/DE.jl`. If more than one of those files exist,
 only the first one (in topdown-order of `walkdir`) is used.
 """
-function findfiles!(bundle::ResourceBundle{T}, loc::Locale) where {T}
-    dir = bundle.path
+function findfiles(bundle::ResourceBundle{T}, loc::Locale) where {T}
+    dir = normpath(bundle.path)
     name = bundle.name
     flist = Dict{LocalePattern,Pathname}() # 
     prefix = joinpath(dir, name)
-    for (root, dirs, files) in walkdir(dir)
-        for f in files
-            file = joinpath(root, f)
-            if startswith(file, prefix)
-                locpa = locale_pattern(file, prefix)
-                if locpa != nothing && !haskey(flist, locpa) && loc ⊆ locpa
-                    push!(flist, locpa => file)
+    if dir != "."
+        for (root, dirs, files) in walkdir(dir)
+            for f in files
+                file = joinpath(root, f)
+                if startswith(file, prefix)
+                    locpa = locale_pattern(file, prefix)
+                    if locpa != nothing && !haskey(flist, locpa) && loc ⊆ locpa
+                        push!(flist, locpa => file)
+                    end
                 end
             end
         end
@@ -264,7 +276,11 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
         end
     end
     clean_cache_list(cache, rlist)
-    unique(Iterators.flatten(dlist))
+    if isempty(dlist)
+        String[]
+    else
+        sort!(unique(Iterators.filter(x -> x != LOCALE_ID, Iterators.flatten(dlist))))
+    end
 end
 
 Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locales.BOTTOM)
@@ -279,11 +295,11 @@ end
 # select all potential source dictionaries for given locale. 
 function initcache!(bundle::ResourceBundle, loc::Locale)
     get!(bundle.cache, loc) do
-        findfiles!(bundle, loc)
+        findfiles(bundle, loc)
     end
 end
 
-# load all entries from one dictionary file-
+# load all entries from one dictionary file.
 function ensure_dict!(bundle::ResourceBundle, cache::Cache, locpa::LocalePattern, path::String, T::Type, rlist::Vector)
     if haskey(cache.dict, locpa)
         dict = cache.dict[locpa]
@@ -294,6 +310,7 @@ function ensure_dict!(bundle::ResourceBundle, cache::Cache, locpa::LocalePattern
         end
         if dict != nothing
             cache.dict[locpa] = dict
+            dict[LOCALE_ID] = string(locpa)
         else
             push!(rlist, locpa)
         end
@@ -308,5 +325,52 @@ function get_dict(bundle::ResourceBundle, locpa::LocalePattern)
         end
     end
     nothing
+end
+
+mod2file(mod::Module) = modname2file(module_name(mod))
+modname2file(name::Symbol) = string("M-", name)
+
+function is_module_specific_resource(mod::Module, path::AbstractString)
+    dir, file = splitdir(path)
+    mp = module_parent(mod)
+    isrootmod = mp === mod
+    isabspath(dir) &&
+    (( isrootmod && file == RESOURCES ) ||
+    (!isrootmod && file == mod2file(mod) && is_module_specific_resource(mp, dir) )) 
+end
+
+
+function define_resource_variable(mod::Module, varname::Symbol, bundlename::AbstractString)
+    if !isdefined(mod, varname)
+        path = resource_path(mod, bundlename)
+        if is_module_specific_resource(mod, path)
+            eval(mod, :(const $varname = ResourceBundle($mod, $bundlename, Any)))
+        elseif isabspath(path)
+            parent = module_parent(mod)
+            prev = define_resource_variable(parent, varname, bundlename)
+            eval(mod, :(const $varname = $parent.$varname))
+        else
+            eval(mod, :(const $varname = ResourceBundle{Any}("", $bundlename, Any)))
+        end
+    else
+        eval(mod, varname)
+    end
+end
+
+"""
+    resource_bundle(module, name) 
+    @resource_bundle name
+
+Create global variable named `RB_<name>` in module `mod`, which contains corresponding
+resource bundle. If the variable preexists, just return it. The macro envocation is
+equivalent to calling `resource_bundle(@__MODULE__, name)`.
+"""
+
+function resource_bundle(mod::Module, name::AbstractString)
+    define_resource_variable(mod, Symbol("RB_", name), name)
+end
+
+macro resource_bundle(name::AbstractString)
+    resource_bundle(__module__, name)
 end
 

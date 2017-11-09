@@ -1,10 +1,8 @@
-function _messages_variable(__module__::Module)
-    if !isdefined(__module__, :MESSAGE_BUNDLE)
-        eval(__module__, :(MESSAGE_BUNDLE = ResourceBundle($__module__, "messages", Any)))
-    else
-        __module__.MESSAGE_BUNDLE
-    end
-end
+
+"""
+Name of resource bundle used for string messages.
+"""
+const MESSAGES = "messages"
 
 function _string2ex(p::AbstractString, oldargs = nothing)
     ex = parse(string('"', p, '"'))
@@ -48,7 +46,7 @@ function tr_macro_impl(::LineNumberNode, __module__::Module, p::Any)
 end
 
 function translate(s1::AbstractString, mod::Module, ex1, arg)
-    mb = _messages_variable(mod)
+    mb = resource_bundle(mod, MESSAGES)
     s2 = get(mb, s1, s1)
     _translate(s1, s2, ex1, arg)
 end
