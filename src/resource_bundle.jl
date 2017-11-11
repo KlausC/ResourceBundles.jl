@@ -13,10 +13,11 @@ struct ResourceBundle{T}
     name::String
     typ::Type
     cache::Dict{Locale,Cache{T}}
+    lock::Threads.RecursiveSpinLock
     function ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T
         ( !isempty(name) && all(isalnum, name) ) ||
             throw(ArgumentError("resource names require alphanumeric but is `$name`"))
-        new(path, string(name), typ, Dict{Locale,Cache{T}}())
+        new(path, string(name), typ, Dict{Locale,Cache{T}}(), Threads.RecursiveSpinLock())
     end
 end
 
@@ -217,9 +218,11 @@ Return value associated with the locale and key.
 
 If the locale is not given, use the ResourceBundles current locale. 
 
-If no default value is iven, reutnr `nothing`.
+If no default value is given, return `nothing`.
 """
 function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
+  try
+    lock(bundle.lock)    
     cache =  initcache!(bundle, loc)
     flist = cache.list
     rlist = Vector()
@@ -242,6 +245,9 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
     end
     clean_cache_list(cache, rlist)
     val
+  finally
+    unlock(bundle.lock)
+  end
 end
 
 function get(bundle::ResourceBundle{T}, loc::Locale, key::String, default::T) where {T}
@@ -260,6 +266,8 @@ import Base.keys
 Return array of all defined keys for a specific locale or all possible locales.
 """
 function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
+  try
+    lock(bundle.lock)    
     cache = initcache!(bundle, loc)
     flist = cache.list
     dlist = Vector()
@@ -277,6 +285,9 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
     else
         sort!(unique(Iterators.filter(x -> x != LOCALE_ID, Iterators.flatten(dlist))))
     end
+  finally
+    unlock(bundle.lock)
+  end
 end
 
 Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locales.BOTTOM)
@@ -335,8 +346,10 @@ function is_module_specific_resource(mod::Module, path::AbstractString)
     (!isrootmod && file == mod2file(mod) && is_module_specific_resource(mp, dir) )) 
 end
 
-
+const LOCK = Threads.RecursiveSpinLock()
 function define_resource_variable(mod::Module, varname::Symbol, bundlename::AbstractString)
+  try
+    lock(LOCK)
     if !isdefined(mod, varname)
         path = resource_path(mod, bundlename)
         if is_module_specific_resource(mod, path)
@@ -351,6 +364,9 @@ function define_resource_variable(mod::Module, varname::Symbol, bundlename::Abst
     else
         eval(mod, varname)
     end
+  finally
+    unlock(LOCK)
+  end
 end
 
 """
@@ -367,6 +383,7 @@ function resource_bundle(mod::Module, name::AbstractString)
 end
 
 macro resource_bundle(name::AbstractString)
-    resource_bundle(__module__, name)
+    mod = __module__
+    :(resource_bundle($mod, $name))
 end
 

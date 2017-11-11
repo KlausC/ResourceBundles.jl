@@ -63,8 +63,13 @@ function create(language::AS, extlang::Vector{String}, script::AS, region::AS, v
         end
     end
     key = tuple(lang, scri, regi, vari, extension)
-    get!(CACHE, key) do
-       Locale(key...)
+    try
+        lock(CACHE_LOCK)
+        get!(CACHE, key) do
+            Locale(key...)
+        end
+    finally
+        unlock(CACHE_LOCK)
     end
 end
 
@@ -264,6 +269,7 @@ function Base.show(io2::IO, x::Locale)
 end
 
 const CACHE = Dict{Key, Locale}()
+const CACHE_LOCK = Threads.RecursiveSpinLock()
 
     # Useful constant for language.
     const ENGLISH = Locale("en", "")
@@ -347,7 +353,7 @@ Valid categories are
 :CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
 """
 function locale(category::Symbol)
-    CURRENT_LOCALES.dict[category]
+    current_locales().dict[category]
 end
 
 """
@@ -360,9 +366,10 @@ Throw exception if category is not :ALL or one of the
 supported categories of `locale`.
 """
 function set_locale!(category::Symbol, loc::Locale)
-    for cat in keys(CURRENT_LOCALES.dict)
+    cld = current_locales().dict
+    for cat in keys(cld)
         if cat == category || category == :ALL
-            CURRENT_LOCALES.dict[cat] = loc
+            cld[cat] = loc
         end
     end
     category == :ALL ? loc : locale(category)
@@ -456,6 +463,13 @@ function all_default_categories()
 
 end
 
-const CURRENT_LOCALES = GlobalLocaleSet()
+function current_locales()
+    tld = task_local_storage()
+    if !haskey(tld, :CURRENT_LOCALES)
+        task_local_storage(:CURRENT_LOCALES, GlobalLocaleSet())
+    else
+        task_local_storage(:CURRENT_LOCALES)
+    end
+end
 
 end # module Locales
