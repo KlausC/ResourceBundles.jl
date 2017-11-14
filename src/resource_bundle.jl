@@ -117,7 +117,7 @@ Example: `Base.Iterators -> [:Main,:Base,:Iterators]`.
 """
 function module_split(mod::Module)
     fn = fullname(mod)
-    VERSION >= v"0.7-DEV" && return fn
+    VERSION >= v"0.7-DEV" ? fn :
     isempty(fn) || !isdir(Pkg.dir(string(fn[1]))) ? (:Main, fn...) : fn
 end
 

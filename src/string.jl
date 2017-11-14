@@ -52,11 +52,8 @@ function translate(s1::AbstractString, mod::Module, ex1, arg)
 end
 
 macro tr_str(p)
-    if VERSION < v"0.7-DEV"
-        __source__ = LineNumberNode(0)
-        __module__ = current_module()
-    end
-    tr_macro_impl(__source__, __module__, p)
+    src, mod = VERSION < v"0.7-DEV" ? (LineNumberNode(0),  current_module()) : (__source__, __module__)
+    tr_macro_impl(src, mod, p)
 end
 
 function _translate(s1::AbstractString, s2::Vector{S}, ex1::Any, arg) where S<:AbstractString
