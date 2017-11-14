@@ -3,17 +3,17 @@ using ResourceBundles
 cd(Pkg.dir("ResourceBundles"))
 
 bundle = ResourceBundle(@__MODULE__, "messages")
+@test bundle.path == abspath("resources")
 
 bundle2 = ResourceBundle(ResourceBundles, "bundle")
+@test realpath(bundle2.path) == realpath(normpath(pwd(), "resources"))
 
 bundle3 = ResourceBundle(ResourceBundles, "does1not2exist")
-
-bundle4 = ResourceBundle(Test, "xxx")
-
-@test bundle.path == abspath("resources")
-@test bundle2.path == Pkg.dir("ResourceBundles", "resources")
 @test bundle3.path == "."
+
+bundle4 = ResourceBundle(Test, "XXX")
 @test bundle4.path == "."
+
 @test_throws ArgumentError ResourceBundle(Main, "")
 @test_throws ArgumentError ResourceBundle(Main, "d_n_e")
 
@@ -111,14 +111,14 @@ bundlea = @resource_bundle("bundle")
 
 module XXX
     using ResourceBundles
-    using Test
+    eval(Main.test)
     @test @resource_bundle("messages") === RB_messages
     @test Main.XXX.RB_messages === Main.RB_messages
     @test @resource_bundle("bundle") === RB_bundle
     @test Main.XXX.RB_bundle !== Main.RB_bundle
     module YYY
     using ResourceBundles
-    using Test
+    eval(Main.test)
         @test @resource_bundle("bundle") === RB_bundle
         @test Main.XXX.YYY.RB_bundle === Main.XXX.RB_bundle
     end
@@ -132,7 +132,9 @@ bundlea = eval(ResourceBundles, :(@resource_bundle("bundle")))
 
 eval(ResourceBundles, :(module XXX
         using ResourceBundles
-        using Test
+        eval(Main.test)
+        
+        @test string(@__MODULE__) == "ResourceBundles.XXX" 
         @test @resource_bundle("messages") === RB_messages
         @test ResourceBundles.XXX.RB_messages === ResourceBundles.RB_messages
         @test @resource_bundle("bundle") === RB_bundle

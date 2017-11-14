@@ -5,7 +5,7 @@ Name of resource bundle used for string messages.
 const MESSAGES = "messages"
 
 function _string2ex(p::AbstractString, oldargs = nothing)
-    ex = parse(string('"', p, '"'))
+    ex = Meta.parse(string('"', p, '"'))
     args = isa(ex, Expr) ? ex.args : [ex]
     io = IOBuffer()
     i = 0
@@ -39,10 +39,10 @@ function _translate(s1::AbstractString, s2::AbstractString, ex1::Any, arg)
     ex2
 end
 
-function tr_macro_impl(::LineNumberNode, __module__::Module, p::Any)
+function tr_macro_impl(::LineNumberNode, mod::Module, p::Any)
     ex1, arg, s1 = _string2ex(p)
     arg = Expr(:tuple, arg...)
-    :(eval(translate($s1, $__module__, $ex1, $(esc(arg)))))
+    :(eval(translate($s1, $mod, $ex1, $(esc(arg)))))
 end
 
 function translate(s1::AbstractString, mod::Module, ex1, arg)
@@ -52,6 +52,10 @@ function translate(s1::AbstractString, mod::Module, ex1, arg)
 end
 
 macro tr_str(p)
+    if VERSION < v"0.7-DEV"
+        __source__ = LineNumberNode(0)
+        __module__ = current_module()
+    end
     tr_macro_impl(__source__, __module__, p)
 end
 

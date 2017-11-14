@@ -1,5 +1,4 @@
 using ResourceBundles
-if VERSION <= v"0.7-DEV" using Base.Test else using Test end
 
 const a1 = "arg1"
 const a2 = "arg2"

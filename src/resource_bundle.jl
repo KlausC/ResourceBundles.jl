@@ -29,6 +29,8 @@ function ResourceBundle(mod::Module, name::AbstractString, T::Type)
     ResourceBundle{T}(resource_path(mod, name), name, T)
 end
 
+const Empty = ResourceBundle{Any}("", "empty", Any)
+
 const SEP = '_'
 const SEP2 = '-'
 const JEND = ".jl"          # extension of resource file
@@ -56,19 +58,19 @@ Nevertheless the resources for one name are always taken from only one subdirect
 """
 function resource_path(mod::Module, name::AbstractString)
     mp = module_split(mod)
-    mp1 = string(mp[1])
-    if mp[1] == :Main
+    
+    if isempty(mp) || mp[1] == :Main
         base = get(ENV, JRB, pwd())
     else
-        base = normpath(package_path(mp1), mp1)
+        base = normpath(package_path(mp[1]), string(mp[1]))
     end
-    n = length(mp)
     path = "."
     prefix = normpath(base, RESOURCES)
     if is_resourcepath(prefix, name)
+        n = length(mp)
         path = prefix
         for i = 2:n
-            prefix = joinpath(prefix, modname2file(mp[i]))
+            prefix = joinpath(prefix, mod2file(mp[i]))
             if is_resourcepath(prefix, name)
                 path = prefix
             end
@@ -82,20 +84,19 @@ end
 
 Return installation directory for module `mod`.
 """
-
-function package_path(name) name = string(name)
+function package_path(name)
+    name = string(name)
     path1 = normpath(JULIA_HOME, "..", "..", "stdlib", name)
     path2 = Pkg.dir(name)
     is1 = isdir(path1)
     is2 = isdir(path2)
     is1 && is2 && warn("module '$name' has same name as stdlib module")
-    !is1 && !is2 && warn("module '$name' not found in '$path1' or '$path2'")
-    splitdir(is2 ? path2 : path1)[1]
+    splitdir(is2 ? path2 : is1 ? path1 : name)[1]
 end
 
 
 """
-    is_resource_dir(path, name)
+    is_resourcepath(path, name)
 
 Check if directory `path` contains subdirectory `name` or a file `name_*` or `name.jl`.
 Path may be relative or absolute. Name may be string or symbol.
@@ -103,7 +104,7 @@ Path may be relative or absolute. Name may be string or symbol.
 function is_resourcepath(path::AbstractString, name::AbstractString)
     isdir(path) || return false
     isdir(joinpath(path, string(name))) && return true
-    stp = name * SEP
+    stp = name * string(SEP)
     res = any(f -> ( startswith(f, stp) || splitext(f) == (name, JEND) ), readdir(path))
     res
 end
@@ -114,14 +115,16 @@ end
 Return the list of module names of a module hierarchy.
 Example: `Base.Iterators -> [:Main,:Base,:Iterators]`.
 """
-module_split(mod::Module) = module_split(mod, Symbol[])
-function module_split(mod::Module, list::Vector{Symbol})
-    mn = module_name(mod)
-    if isempty(list) || mn != first(list)
-        unshift!(list, mn)
-        module_split(module_parent(mod), list)
-    end
-    list
+function module_split(mod::Module)
+    fn = fullname(mod)
+    VERSION >= v"0.7-DEV" && return fn
+    isempty(fn) || !isdir(Pkg.dir(string(fn[1]))) ? (:Main, fn...) : fn
+end
+
+function module_root(mod::Module)
+    p = module_parent(mod)
+    p === mod && return mod
+    module_root(p)
 end
 
 """
@@ -334,16 +337,16 @@ function get_dict(bundle::ResourceBundle, locpa::LocalePattern)
     nothing
 end
 
-mod2file(mod::Module) = modname2file(module_name(mod))
-modname2file(name::Symbol) = string("M-", name)
+mod2file(name::Symbol) = string("M-", name)
 
-function is_module_specific_resource(mod::Module, path::AbstractString)
+is_module_specific(mod::Module, path) = is_module_specific(module_split(mod), path)
+
+function is_module_specific(mp::NTuple{N,Symbol}, path::AbstractString) where N
     dir, file = splitdir(path)
-    mp = module_parent(mod)
-    isrootmod = mp === mod
+    isrootmod = length(mp) <= 1
     isabspath(dir) &&
     (( isrootmod && file == RESOURCES ) ||
-    (!isrootmod && file == mod2file(mod) && is_module_specific_resource(mp, dir) )) 
+     (!isrootmod && file == mod2file(mp[end]) && is_module_specific(mp[1:end-1], dir) )) 
 end
 
 const LOCK = Threads.RecursiveSpinLock()
@@ -352,14 +355,14 @@ function define_resource_variable(mod::Module, varname::Symbol, bundlename::Abst
     lock(LOCK)
     if !isdefined(mod, varname)
         path = resource_path(mod, bundlename)
-        if is_module_specific_resource(mod, path)
+        if is_module_specific(mod, path)
             eval(mod, :(const $varname = ResourceBundle($mod, $bundlename, Any)))
         elseif isabspath(path)
             parent = module_parent(mod)
             prev = define_resource_variable(parent, varname, bundlename)
             eval(mod, :(const $varname = $parent.$varname))
         else
-            eval(mod, :(const $varname = ResourceBundle{Any}("", $bundlename, Any)))
+            eval(mod, :(const $varname = ResourceBundles.Empty))
         end
     else
         eval(mod, varname)
@@ -383,7 +386,7 @@ function resource_bundle(mod::Module, name::AbstractString)
 end
 
 macro resource_bundle(name::AbstractString)
-    mod = __module__
+    mod = VERSION < v"0.7-DEV" ? current_module() : __module__
     :(resource_bundle($mod, $name))
 end
 
