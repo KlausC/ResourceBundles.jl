@@ -121,12 +121,6 @@ function module_split(mod::Module)
     isempty(fn) || !isdir(Pkg.dir(string(fn[1]))) ? (:Main, fn...) : fn
 end
 
-function module_root(mod::Module)
-    p = module_parent(mod)
-    p === mod && return mod
-    module_root(p)
-end
-
 """
     findfiles(bundle, locale) -> Cache 
 
