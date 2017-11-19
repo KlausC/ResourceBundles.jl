@@ -88,10 +88,10 @@ All those formats are converted to a canonical form and stored in objects of typ
 `Locale` implements the `equals` and the `issubset` (`⊆`) relations. 
 Here `Locale("en_US") ⊆ Locale("en") ⊆ Locale("C") === Locale("")`.
 
-There is a set of global variables, which are used as "current locale" for different purposes.
+There is a set of task-local variables, which are used as "current locale" for different purposes.
 These variables are accessed with get/set methods.
 For example the locale `get_locale(:MESSAGES)` is used as the default locale for message
-text look-up.
+text look-up in the current task.
 
 ##### Resource Bundles
 
@@ -101,12 +101,20 @@ Conceptually it behaves like a `Dict{Tuple{String,Locale},Any}`.
 Each resource bundle is bound to a package. The corresponding data are stored in the
 subdirectory `resources` of the package directory.
 
-`bundle = @resource_bundle("messages")` creates a resource bundle, which is bound
-to the current module.
+`bundle = @resource_bundle("pictures")` creates a resource bundle, which is bound
+to the current module. 
 The resources are looked for the resources subdirectory of a package module or, if the
 base module is `Main`, in the current working directory.
 
-Naming of locale-specific files. Fallback strategy if requested locale does not exactly match.
+The object stored in reousource bundles are not restricted to strings, but may have any Julia type.
+For example, it could make sense to store locale-dependant pictures (containing natuaral language texts) in resource bundles. Also locale dependant information or algorithms are possible.
+
+The actual data of all resource bundles of a package stored in the package directory in an extra subdirectory named `resources` (`resource-dir>`. An individual resource bundle with name `<name>` consists of a collection of files with path names
+`<resource-dir>/<name><intermediate>.jl`. Here `<intermediate>`may be empty or a canonicalized locale tag, whith
+separator characters replaced by `'_'` or `'/'`. That means, all files have the standard `Julia`extension (and they 
+actually contain `Julia`code). The files may be spread in a subdirectory hierarchy according to the structure of the languange tags. 
+
+Fallback strategy following structure of language tags.
 
 
 ##### String Translations
