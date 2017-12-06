@@ -69,7 +69,7 @@ end
 
 # produce modified Expr, list of interpolation arguments, and key string
 function _string2ex1(p::AbstractString)
-    ex = Meta.parse(string('"', p, '"')) # parsing text argument of str_tr
+    ex = Meta.parse(string(TQ, p, TQ)) # parsing text argument of str_tr
     args = isa(ex, Expr) ? ex.args : [ex]
     ea = []
     i = 1
@@ -77,7 +77,7 @@ function _string2ex1(p::AbstractString)
     for j in 1:length(args)
         a = args[j]
         if ! ( a isa String )
-            if !multi && a isa Expr && a.head == :call && a.args[1] == :!
+            if !multi && a isa Expr && a.head == :call && a.args[1] == SPRIME
                 multi = true
                 unshift!(ea, a.args[2]) # this argument goes to index 1
                 args[j] = 1
@@ -86,11 +86,14 @@ function _string2ex1(p::AbstractString)
                         args[k] += 1
                     end
                 end
+                i += 1
+            elseif a isa Expr && a.head == SCONTEXT
+                args[j] = string("\$(", SCONTEXT, a.args[1], ")")
             else
                 args[j] = i
                 push!(ea, a)
+                i += 1
             end
-            i += 1
         end
     end
 
@@ -108,7 +111,7 @@ end
 
 # produce Expr with interpolation arguments replaced, and original list of positions
 function _string2ex(p::AbstractString, oldargs)
-    ex = Meta.parse(string('"', p, '"')) # parsing translated text
+    ex = Meta.parse(string(TQ, p, TQ)) # parsing translated text
     args = isa(ex, Expr) ? ex.args : [ex]
     i = 0
     ea = Int[]
@@ -124,3 +127,6 @@ function _string2ex(p::AbstractString, oldargs)
     ex, ea
 end
 
+TQ = "\"\"\""   # three quote characters in a string
+SPRIME = :!     # multiplicity indicator in tr-string    tr"... $(!count) ..."
+SCONTEXT = :$   # context indicator in tr-string         tr"$($ctxname)..."

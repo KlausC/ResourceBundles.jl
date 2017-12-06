@@ -44,5 +44,31 @@ Locales.set_locale!(:MESSAGES, Locale("de-AT"))
 @test tr"These are $h0 houses" == "Das sind 0 Häuser"
 @test tr"In $(city) the temperature was above $(temp) °C" == "Die Temperatur von $(temp) °C wurde in $(city) überschritten"
 @test tr"In $(city) the temperature was above $(temp) °C at $(!ndhi) days" == "In $(city) war die Temperatur an $(ndhi) Tagen über $(temp) °C"
-@test tr"In $(city) the temperature was above $(temp) °C at $(!h1) days" == "In $(city) war die Temperatur an einem Tag über $(temp) °C"
+@test tr"In $(city) the temperature was above $(temp) °C at $(!h1) days" == "In $(city) war die Temperatur an einem \"Tag\" über $(temp) °C"
+
+# Permutations
+@test tr"123 $(1) $(2) $(3)" == "123 1 2 3"
+@test tr"132 $(1) $(2) $(3)" == "132 1 3 2"
+@test tr"213 $(1) $(2) $(3)" == "213 2 1 3"
+@test tr"213 $(1) $(2) $(3)" == "213 2 1 3"
+@test tr"312 $(1) $(2) $(3)" == "312 3 1 2"
+@test tr"321 $(1) $(2) $(3)" == "321 3 2 1"
+
+# Primary Forms
+@test tr"123 $(1) $(!2) $(3)" == "123 1 2 3"
+@test tr"132 $(1) $(!2) $(3)" == "132 1 3 2" #
+@test tr"213 $(1) $(!2) $(3)" == "213 2 1 3" 
+@test tr"213 $(1) $(!2) $(3)" == "213 2 1 3"
+@test tr"312 $(1) $(!2) $(3)" == "312 3 1 2" #
+@test tr"321 $(1) $(!2) $(3)" == "321 3 2 1" #
+@test tr"123 $(1) $(2) $(!3)" == "123 1 2 3" #
+@test tr"132 $(1) $(2) $(!3)" == "132 1 3 2" #
+@test tr"213 $(1) $(2) $(!3)" == "213 2 1 3" #
+@test tr"213 $(1) $(2) $(!3)" == "213 2 1 3" #
+@test tr"312 $(1) $(2) $(!3)" == "312 3 1 2" #
+@test tr"321 $(1) $(2) $(!3)" == "321 3 2 1" #
+
+# Context
+@test_broken tr"$($testcontext)original" == "O r i g i n a l"
+# design pending: how is context represented in 1. tr-string and 2. key in res dict ?
 

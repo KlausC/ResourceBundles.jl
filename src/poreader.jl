@@ -94,13 +94,18 @@ function read_po_file(file::Union{AbstractString,IO})
         end
     end
 
+    key(ctx, id) = isempty(id) ? id : isempty(ctx) ? id : "ctx($ctx)" * id
+    skey(ti::TranslationItem) = key(ti.context, ti.id)
+    pkey(ti::TranslationItem) = key(ti.context, ti.plural)
+
     function process_translation_item(ti::TranslationItem)
-        key = isempty(ti.plural) ? ti.id : ti.plural
         val = map(p->p.second, sort(collect(ti.strings)))
         if length(val) == 1 && isempty(ti.plural)
             val = val[1]
         end
-        push!(dict, key => val)
+        !isempty(ti.id) && push!(dict, skey(ti) => val)
+        !isempty(ti.plural) && ti.plural != ti.id && push!(dict, pkey(ti) => val)
+        isempty(ti.id) && isempty(ti.plural) && push!(dict, "" => val)
         init_ti!(ti)
         in_ti = 0
     end
@@ -141,11 +146,14 @@ function translate_plural_data(str::AbstractString)
                 ex = Meta.parse(m.captures[2])
                 nplurals = Int(eval(ex)) # evaluate right hand side
             elseif m.captures[1] == "plural"
-                ex = Meta.parse("n -> " * m.captures[2])
-                f = n::Int -> Base.invokelatest(eval(ex), n)
-# avoid the following error when calling f:
+                ex = :(n::Int -> $(Meta.parse(m.captures[2])))
+                # f(n::Int) = (eval(ex))(n)
+                f(n::Int) = Base.invokelatest(eval(ex), n)
+# avoid the following error when calling f by calling invokelatest:
 # MethodError: no method matching (::getfield(ResourceBundles, Symbol("...")))(::Int64)
 # The applicable method may be too new: running in world age ~3, while current world is ~4.
+# This is maybe an undesirable hack - looking for more elegant work around.
+
                 plural = n -> max(min(f(n), nplurals-1), 0)
             end
         end
