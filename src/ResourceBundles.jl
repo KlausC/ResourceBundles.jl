@@ -3,6 +3,7 @@ module ResourceBundles
 export Locales, Locale
 export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
 export @tr_str, @trn_str
+export read_po_file
 
 if VERSION < v"0.7-DEV"
     macro __MODULE__()
@@ -31,7 +32,7 @@ include("locale.jl")
 const Locale = Locales.Locale
 
 include("resource_bundle.jl")
-
 include("string.jl")
+include("poreader.jl")
 
 end # module ResourceBundles

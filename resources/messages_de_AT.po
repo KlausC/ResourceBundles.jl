@@ -1,0 +1,37 @@
+# translation of messages.po to German
+# Copyright (C)
+# Thomas Fäscher <tfaescherhd@xxy.org>, 2002, 2003, 2004.
+msgid ""
+msgstr ""
+"Project-Id-Version: test\n"
+"Report-Msgid-Bugs-To: http://bugs.xxx.org\n"
+"POT-Creation-Date: 2008-04-28 18:47+0200\n"
+"PO-Revision-Date: 2007-12-06 20:50+0100\n"
+"Last-Translator: Werner Schwier <tr@hallo.de>\n"
+"Language-Team: German\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Language: de_DE\n"
+
+#: test.jl:505
+msgid ""
+msgid_plural "These are $(1) houses"
+msgstr[0] "Das ist ein Haus"
+msgstr[1] "Das sind $(1) Häuser"
+
+msgid "original text"
+msgstr "Originaltext"
+
+msgid "$(1) dogs have $(2) legs"
+msgstr "$(2) Beine gehören zu $(1) Hunden"
+
+msgid "In $(1) the temperature was above $(2) °C"
+msgstr "Die Temperatur von $(2) °C wurde in $(1) überschritten"
+
+msgid ""
+msgid_plural "In $(2) the temperature was above $(3) °C at $(1) days"
+msgstr[0] "In $(2) war die Temperatur an einem Tag über $(3) °C"
+msgstr[1] "In $(2) war die Temperatur an $(1) Tagen über $(3) °C"
+

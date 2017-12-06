@@ -3,38 +3,44 @@ using Base.Filesystem
 const LocalePattern = Locale
 const Pathname = String
 
-mutable struct Cache{T}
-    list::Vector{Pair{LocalePattern,Pathname}}
-    dict::Dict{LocalePattern,Dict{String,T}}
+struct Resource
+    nplurals::Int
+    plural::Function
+    file::String
+    dict::Dict{String,<:Any}
 end
 
-struct ResourceBundle{T}
+mutable struct Cache
+    list::Vector{Pair{LocalePattern,Pathname}}
+    dict::Dict{LocalePattern,Resource}
+end
+
+function Resource(f::AbstractString, res::Dict{String,T}) where T
+    Resource(0, (n)->0, f, res)
+end
+
+struct ResourceBundle
     path::Pathname
     name::String
-    typ::Type
-    cache::Dict{Locale,Cache{T}}
+    cache::Dict{Locale,Cache}
     lock::Threads.RecursiveSpinLock
-    function ResourceBundle{T}(path::Pathname, name::AbstractString, typ::Type{T}) where T
+    function ResourceBundle(path::Pathname, name::AbstractString)
         ( !isempty(name) && all(isalnum, name) ) ||
             throw(ArgumentError("resource names require alphanumeric but is `$name`"))
-        new(path, string(name), typ, Dict{Locale,Cache{T}}(), Threads.RecursiveSpinLock())
+        new(path, string(name), Dict{Locale,Cache}(), Threads.RecursiveSpinLock())
     end
 end
 
 function ResourceBundle(mod::Module, name::AbstractString)
-    ResourceBundle{Any}(resource_path(mod, name), name, Any)
+    ResourceBundle(resource_path(mod, name), name)
 end
 
-function ResourceBundle(mod::Module, name::AbstractString, T::Type) 
-    ResourceBundle{T}(resource_path(mod, name), name, T)
-end
-
-const Empty = ResourceBundle{Any}("", "empty", Any)
+const Empty = ResourceBundle("", "empty")
 
 const SEP = '_'
 const SEP2 = '-'
-const JEND = ".jl"          # extension of resource file
-const JENDL = length(JEND)
+const JEND = ".jl"          # extension of Julia resource file
+const PEND = ".po"          # extension of PO resource file
 const RESOURCES = "resources"   # name of subdirectory
 const JRB = "JULIA_RESOURCE_BASE" # enviroment variable
 const LOCALE_ID = ".LOCALE_ID"  # invisible key in resource dictionaries
@@ -105,8 +111,11 @@ function is_resourcepath(path::AbstractString, name::AbstractString)
     isdir(path) || return false
     isdir(joinpath(path, string(name))) && return true
     stp = name * string(SEP)
-    res = any(f -> ( startswith(f, stp) || splitext(f) == (name, JEND) ), readdir(path))
-    res
+    function resind(f::AbstractString)
+        fname, fext = splitext(f)
+        startswith(f, stp) || ( fname == name && ( fext == JEND || fext == PEND ) )
+    end
+    any(resind, readdir(path))
 end
 
 """
@@ -136,7 +145,7 @@ Example: for `Locale("de-DE")`, the resource files could be `name_de_DE.jl` or
 `name_de/DE.jl` or `name/de_DE.jl` or `name/de/DE.jl`. If more than one of those files exist,
 only the first one (in topdown-order of `walkdir`) is used.
 """
-function findfiles(bundle::ResourceBundle{T}, loc::Locale) where {T}
+function findfiles(bundle::ResourceBundle, loc::Locale)
     dir = normpath(bundle.path)
     name = bundle.name
     flist = Dict{LocalePattern,Pathname}() # 
@@ -155,16 +164,15 @@ function findfiles(bundle::ResourceBundle{T}, loc::Locale) where {T}
         end
     end
     locs = sort(collect(keys(flist)))
-    Cache(collect(loc => flist[loc] for loc in locs), Dict{LocalePattern,Dict{String,T}}())
+    Cache(collect(loc => flist[loc] for loc in locs), Dict{LocalePattern,Resource}())
 end
 
 # derive locale pattern from file path
 function locale_pattern(f::AbstractString, name::AbstractString)
-    if startswith(f, name) && endswith(f, JEND)
+    f, fext = splitext(f)
+    if startswith(f, name) && ( fext == JEND || fext == PEND )
         n = sizeof(name)
-        m = sizeof(f)
-        x = String(f[nextind(f, n, 2):prevind(f, m, JENDL)])
-
+        x = String(f[nextind(f, n, 2):end])
         x = replace(x, Filesystem.path_separator, SEP)
         x = replace(x, SEP2, SEP)
         Locale(String(x))
@@ -174,29 +182,36 @@ function locale_pattern(f::AbstractString, name::AbstractString)
 end
 
 """
-    load_file(path, T) -> Dict{String,T}
+    load_file(path)
 
-Load file and create an object of type Dict{String,T}.
+Load file and create an object of type Resource.
 The loaded file must contain valid julia code returning a dictionary object of the
-requested type.
+requested type, or an array of pairs, which can be used to construct one. 
+
+Alternatively, if the value type is `String`, in the case of message resource files,
+The file content may be formattet as a gettext po file.
 
 In case of errors, a warning is printed to logging device and `nothing` is returned.
 """
-function load_file(f::AbstractString, T::Type)
-    dict = nothing
+function load_file(f::AbstractString)
     d = nothing
-    try
-        d = include(f)
-    catch ex
-        warn(ex)
+    dict = nothing
+    _, fext = splitext(f)
+    if fext == JEND
+        d = load_file_jl(f)
+    elseif fext == PEND
+        d = load_file_po(f)
+    else
+        warn("invalid extension of file name '$f'")
     end
-
+    
     if isa(d, Union{Vector{T},NTuple{N,Pair},T} where {T<:Pair,N})
         d = Dict(d)
     end
+
     if isa(d, Dict)
         el = eltype(d).parameters
-        if el[1] <: String && el[2] <: T
+        if el[1] <: String
             dict = d
         else
             warn("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
@@ -204,20 +219,55 @@ function load_file(f::AbstractString, T::Type)
     else
         warn("Wrong type '$(typeof(d))' loaded from '$f' is not a dictionary")
     end
-    dict
+    
+    if dict != nothing
+        hdr = get(dict, "", "")
+        nplurals, plural = read_header(hdr)
+        return Resource(nplurals, plural, f, dict)
+    end
+    nothing
+end
+
+function load_file_jl(f::AbstractString)
+    d = nothing
+    try
+        d = include(f)
+    catch ex
+        warn(ex)
+    end
+    d
+end
+
+function load_file_po(f::AbstractString)
+    d = nothing
+    try
+        d = read_po_file(f)
+    catch ex
+        warn(ex)
+    end
+    d
 end
 
 import Base.get
 """
-    get(bundle::ResourceBundle{T}[, locale], key::String[, default::T]) -> T
+    get(bundle::ResourceBundle[, locale], key::String [,default]) -> Any
 
 Return value associated with the locale and key.
-
-If the locale is not given, use the ResourceBundles current locale. 
-
+If the locale is not given, use the ResourceBundles current locale for messages. 
 If no default value is given, return `nothing`.
 """
-function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
+function get(bundle::ResourceBundle, loc::Locale, key::AbstractString, default=nothing)
+    resource = get_resource_by_key(bundle, loc, key)
+    resource != nothing ? get(resource.dict, key, default) : default
+end
+
+"""
+    get_resource_by_key(bundle[, locale], key) -> Resource
+
+Get resource object which contains key. It also provides multiplicity information.
+If the key is not found in any resource file, return `nothing`.
+"""
+function get_resource_by_key(bundle::ResourceBundle, loc::Locale, key::AbstractString)
   try
     lock(bundle.lock)    
     cache =  initcache!(bundle, loc)
@@ -226,11 +276,11 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
     xloc = Locale("")
     val = nothing
     for (locpa, path) in flist
-        dict = ensure_dict!(bundle, cache, locpa, path, T, rlist)
-        if dict != nothing && haskey(dict, key)
+        resource = ensure_resource!(bundle, cache, locpa, path, rlist)
+        if resource != nothing && haskey(resource.dict, key)
             if val == nothing
                 xloc = locpa
-                val = dict[key]
+                val = resource
             else
                 if xloc ⊆ locpa
                     break
@@ -247,13 +297,10 @@ function get(bundle::ResourceBundle{T}, loc::Locale, key::String) where {T}
   end
 end
 
-function get(bundle::ResourceBundle{T}, loc::Locale, key::String, default::T) where {T}
-    x = get(bundle, loc, key)
-    ifelse(x == nothing, default, x)
-end
-
-get_locale() = Locales.locale(:MESSAGES)
-get(bundle::ResourceBundle{T}, key::String, default::T) where {T} = get(bundle, get_locale(), key, default)
+# variants using default locale for messages
+msg_loc() = Locales.locale(:MESSAGES)
+get(bundle::ResourceBundle, key::String, default=nothing) = get(bundle, msg_loc(), key, default)
+get_resource_by_key(bundle::ResourceBundle, key::String) =  get_resource_by_key(bundle, msg_loc(), key)
 
 import Base.keys
 """
@@ -262,7 +309,7 @@ import Base.keys
 
 Return array of all defined keys for a specific locale or all possible locales.
 """
-function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
+function Base.keys(bundle::ResourceBundle, loc::Locale)
   try
     lock(bundle.lock)    
     cache = initcache!(bundle, loc)
@@ -271,9 +318,9 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
     rlist = Vector()
     val = nothing
     for (locpa, path) in flist
-        dict = ensure_dict!(bundle, cache, locpa, path, T, rlist)
-        if dict != nothing
-            push!(dlist, keys(dict))
+        resource = ensure_resource!(bundle, cache, locpa, path, rlist)
+        if resource != nothing
+            push!(dlist, keys(resource.dict))
         end
     end
     clean_cache_list(cache, rlist)
@@ -287,7 +334,7 @@ function Base.keys(bundle::ResourceBundle{T}, loc::Locale) where {T}
   end
 end
 
-Base.keys(bundle::ResourceBundle{T}) where {T} = keys(bundle, Locales.BOTTOM)
+Base.keys(bundle::ResourceBundle) = keys(bundle, Locales.BOTTOM)
 
 #remove unused files from cache list
 function clean_cache_list(cache::Cache, rlist::Vector)
@@ -304,25 +351,32 @@ function initcache!(bundle::ResourceBundle, loc::Locale)
 end
 
 # load all entries from one dictionary file.
-function ensure_dict!(bundle::ResourceBundle, cache::Cache, locpa::LocalePattern, path::String, T::Type, rlist::Vector)
+function ensure_resource!(bundle::ResourceBundle, cache::Cache, locpa::LocalePattern, path::String, rlist::Vector)
     if haskey(cache.dict, locpa)
-        dict = cache.dict[locpa]
+        resource = cache.dict[locpa]
     else
-        dict = get_dict(bundle, locpa)
-        if dict == nothing
-            dict = load_file(path, T)
+        resource = get_resource_by_pattern(bundle, locpa)
+        if resource == nothing
+            resource = load_file(path)
         end
-        if dict != nothing
-            cache.dict[locpa] = dict
-            dict[LOCALE_ID] = string(locpa)
+        if resource != nothing
+            cache.dict[locpa] = resource
+            resource.dict[LOCALE_ID] = string(locpa)
         else
             push!(rlist, locpa)
         end
     end
-    dict
+    resource
 end
 
-function get_dict(bundle::ResourceBundle, locpa::LocalePattern)
+"""
+    get_resource_by_pattern(bundle, locale_pattern)
+
+Obtain resource object of a bundle, which is identified by a locale pattern.
+That is commonly constructed of the contents of one resource file, that has the
+locale pattern as part of its name.
+"""
+function get_resource_by_pattern(bundle::ResourceBundle, locpa::LocalePattern)
     for cache in values(bundle.cache)
         if haskey(cache.dict, locpa)
             return cache.dict[locpa]
@@ -350,7 +404,7 @@ function define_resource_variable(mod::Module, varname::Symbol, bundlename::Abst
     if !isdefined(mod, varname)
         path = resource_path(mod, bundlename)
         if is_module_specific(mod, path)
-            eval(mod, :(const $varname = ResourceBundle($mod, $bundlename, Any)))
+            eval(mod, :(const $varname = ResourceBundle($mod, $bundlename)))
         elseif isabspath(path)
             parent = module_parent(mod)
             prev = define_resource_variable(parent, varname, bundlename)

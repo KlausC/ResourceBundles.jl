@@ -1,7 +1,5 @@
 using ResourceBundles
 
-cd(Pkg.dir("ResourceBundles"))
-
 bundle = ResourceBundle(@__MODULE__, "messages")
 @test bundle.path == abspath("resources")
 

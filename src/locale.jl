@@ -271,64 +271,28 @@ end
 const CACHE = Dict{Key, Locale}()
 const CACHE_LOCK = Threads.RecursiveSpinLock()
 
-    # Useful constant for language.
+    # Languages
     const ENGLISH = Locale("en", "")
-
-    # Useful constant for language.
     const FRENCH = Locale("fr", "")
-
-    # Useful constant for language.
     const GERMAN = Locale("de", "")
-
-    # Useful constant for language.
     const ITALIAN = Locale("it", "")
-
-    # Useful constant for language.
     const JAPANESE = Locale("ja", "")
-
-    # Useful constant for language.
     const KOREAN = Locale("ko", "")
-
-    # Useful constant for language.
     const CHINESE = Locale("zh", "")
-
-    # Useful constant for language.
     const SIMPLIFIED_CHINESE = Locale("zh", "CN")
-
-    # Useful constant for language.
     const TRADITIONAL_CHINESE = Locale("zh", "TW")
 
-    # Useful constant for country.
+    # Countries
     const FRANCE = Locale("fr", "FR")
-
-    # Useful constant for country.
     const GERMANY = Locale("de", "DE")
-
-    # Useful constant for country.
     const ITALY = Locale("it", "IT")
-
-    # Useful constant for country.
     const JAPAN = Locale("ja", "JP")
-
-    # Useful constant for country.
     const KOREA = Locale("ko", "KR")
-
-    # Useful constant for country.
     const CHINA = SIMPLIFIED_CHINESE
-
-    # Useful constant for country.
     const PRC = SIMPLIFIED_CHINESE
-
-    # Useful constant for country.
     const TAIWAN = TRADITIONAL_CHINESE
-
-    # Useful constant for country.
     const UK = Locale("en", "GB")
-
-    # Useful constant for country.
     const US = Locale("en", "US")
-
-    # Useful constant for country.
     const CANADA = Locale("en", "CA")
 
 """

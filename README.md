@@ -13,21 +13,33 @@ Main features:
   * Locale patterns imply a canonical partial ordering by set inclusion
 
 * ResourceBundle
-  * Database of text strings, identified by locale and individual text key
-  * select most specific available text according to canonical ordering of locales
+  * Database of objects (e.g. text strings), identified by locale and individual text key
+  * select most specific available object according to canonical ordering of locales
   * detect ambiguities for individual keys
   * storage in package module directory
+  * database uses files witten in Julia source code
+  * database files containing translated texts using gettext-PO format is supported (TODO)
 
-* Message text localization
+* Message text localization (LC_MESSAGES)
   * a string macro providing translation of standard language according to default locale
   * support string interpolation and control ordering of interpolated substrings
+  * includes mechanism for multiple plural forms for translations
   * fall back to text provided as key within the source text
   * Define global default Resource bundle for each module
 
-* NumberFormat
-  * to be handled in the relevant formatting functions of Base
-* DateTimeFormat
-  * to be handled in the relevant formatting functions of Base
+* NumberFormat and DateTimeFormat (LC_NUMERIC, LC_TIME) (TODO)
+  * If an object is formatted in the interpolation context of a translated string, instead 
+  of the usual `show` method, a locale sensitive replacement is called.
+  * those methods default to the standard methods, if not explicitly defined.
+  * For real numbers and date or time objects, methods can be provided as locale dependent resources.
+
+* String comparison (LC_COLLATE) (TODO)
+  * Strings containing natural language texts are sorted locle-sensitive according to
+  "Unicode Collation Algorithm". Implementation makes use of `ICU` if possible. In order to treat a string as natural text, it is wrapped by a `NlsString` object.
+
+* Character Classes (LC_CTYPE) (TODO)
+  * Character classification (`isdigit`, `isspace` ...) and character or string transformations
+  (`uppercasea`, `titlecase`, ...) are performed locale-sensitive for wrapped types.
 
 #### Installation
 
@@ -47,7 +59,7 @@ using ResourceBundles
 
 Locales.set_locale!(:MESSAGES, Locale("de"))
 
-println(tr"original text")
+println(tr"$(context=test)original text")
 println(tr"$n dogs have $(4n) legs")
 for lines in [1,2,3]
     println(tr"$errnum lines of code")
@@ -57,11 +69,38 @@ end module
 sample configuration files in directory `.julia/v0.7/MyModule/resources`
 
 ```
+cat messages_de.po
+#
+# Comments
+#
+# Empty msgid containing options - only Plural-Forms is used
+msgid ""
+msgstr "other options\n"
+       "Plural-Forms: nplurals = 3; plural = n == 1 ? 0 : n == 2 ? 1 : 3\n"
+       "other options:  \n"
+
+#: main.jl:6 (used as a comment)
+msgid "original text"
+msgstr "Originaltext"
+
+#: main.jl:7
+msgid "$(1) dogs have $(2) legs"
+msgstr $(2) Beine gehören zu $(1) Hunden"
+
+#: main.jl:9
+msgid "$(1) lines of code"
+msgstr[0] "eine Zeile"
+msgstr[1] "Zeilenpaar"
+msgstr[2] "$(1) Zeilen" 
+```
+or alternatively, with same effect
+```
 cat messages_de.jl
-(
+( "" => "Plural-Forms: nplurals = 3; plural = n == 1 ? 0 : n == 2 ? 1 : 3"
+
 "original text" => "Originaltext",
 raw"$(1) dogs have $(2) legs" => raw"$(2) Beine gehören zu $(1) Hunden",
-raw"$(1) lines of code" => [raw"$(1) Zeile", raw"""$(2 => "")Zeilenpaar""", raw"$(Any) Zeilen"],) 
+raw"$(1) lines of code" => ["eine Zeile", """Zeilenpaar""", raw"$(1) Zeilen"],) 
 ```
 
 expected output:
@@ -121,17 +160,24 @@ It has the following features.
  * support string interpolation, allowing re-ordering of variables
  * support multiple plural forms for exactly one interpolation variable
 
-The database for the translation uses a canonicalized form of the texts used in the source code as keys.
+The interpolation expressions are embedded in the text of the string-macro `tr` in the usual
+form, e.g. `tr" ...  $var ... $(expr) ..."`.
+If the programmer wants the text to be translated into one of several grammatical plural forms,
+he has to formulate the text in the program in the plural form of the standard language and
+embed at least one interpolation expression. One of those expressions has to be flagged by
+the unary negation operator ( `tr" ... $(!expr) ... "`). The flagged expression must provide an
+integer value. The negation operation is not executed, but indicates to the implementation,
+which of several plural options has to be selected.
+For this purpose the translation text database defines a "plural-formula", which maps the
+integer expression `n` to a zero-based index. This index peeks the proper translation from a
+vector of strings.
+Some typical formulas:
+Chinese: `0`
+English: `n > 1 ? 1 : 0`
+French:  `n == 1 ? 0 : 1`
+Russian: `n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2`
 
 The macro includes the functionality of the gnu library calls `gettext`and `ngettext`.
-
-
-
-
-
-
-
-
-
-
+The database supports the file format, defined by "GNU-gettext".
+See (https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files)
 
