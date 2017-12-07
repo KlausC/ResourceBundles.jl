@@ -298,7 +298,7 @@ function get_resource_by_key(bundle::ResourceBundle, loc::Locale, key::AbstractS
 end
 
 # variants using default locale for messages
-msg_loc() = Locales.locale(:MESSAGES)
+msg_loc() = locale(:MESSAGES)
 get(bundle::ResourceBundle, key::String, default=nothing) = get(bundle, msg_loc(), key, default)
 get_resource_by_key(bundle::ResourceBundle, key::String) =  get_resource_by_key(bundle, msg_loc(), key)
 
@@ -334,7 +334,7 @@ function Base.keys(bundle::ResourceBundle, loc::Locale)
   end
 end
 
-Base.keys(bundle::ResourceBundle) = keys(bundle, Locales.BOTTOM)
+Base.keys(bundle::ResourceBundle) = keys(bundle, BOTTOM)
 
 #remove unused files from cache list
 function clean_cache_list(cache::Cache, rlist::Vector)

@@ -1,5 +1,7 @@
 using ResourceBundles
 
+import ResourceBundles: set_locale!
+
 const a1 = "arg1"
 const a2 = "arg2"
 const a3 = 4711
@@ -14,7 +16,7 @@ ndhi = 15
 
 logging()
 
-Locales.set_locale!(:MESSAGES, Locale("en-us"))
+set_locale!(:MESSAGES, Locale("en-us"))
 @test tr"T3" == "T3 - en_US"
 @test tr"original $a1($a2) : $(a3*2)" == "US version $(a3*2) / $a2 $a1"
 
@@ -29,7 +31,7 @@ Locales.set_locale!(:MESSAGES, Locale("en-us"))
 @test tr"These are $(0) houses" == "This is not a house"
 @test tr"These are $(hmany-hmany) houses" == "This is not a house"
 
-Locales.set_locale!(:MESSAGES, Locale("fr"))
+set_locale!(:MESSAGES, Locale("fr"))
 @test tr"original $a1($a2) : $(a3*2)" == "original $a1($a2) : $(a3*2)"
 
 @test tr"These are $(1) houses" == "C'est 1 maison"
@@ -37,7 +39,7 @@ Locales.set_locale!(:MESSAGES, Locale("fr"))
 @test tr"These are $(10) houses" == "Ce sont beaucoup(10) de maisons"
 @test tr"These are $h0 houses" == "C'est 0 maison"
 
-Locales.set_locale!(:MESSAGES, Locale("de-AT"))
+set_locale!(:MESSAGES, Locale("de-AT"))
 @test tr"These are $(1) houses" == "Das ist ein Haus"
 @test tr"These are $(hmany*3+3) houses" == "Das sind 42 Häuser"
 @test tr"These are $(10) houses" == "Das sind 10 Häuser"

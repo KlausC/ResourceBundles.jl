@@ -1,6 +1,5 @@
-module Locales
 
-export Locale
+export Locale, default_locale, create_locale
 export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
         SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
 export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
@@ -43,13 +42,13 @@ const EMPTYD = ExtensionDict()
 Return `Locale` object from cache or create new one and register in cache.
 """
 Locale() = BOTTOM
-Locale(langtag::AS) = langtag == "" ? ROOT : create(splitlangtag(langtag)...)
-Locale(lang::AS, region::AS) = create(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
-Locale(lang::AS, script::AS, region::AS) = create(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
-Locale(lang::AS, script::AS, region::AS, variant::AS) = create(lang, EMPTYV, script, region, [variant], EMPTYD)
+Locale(langtag::AS) = langtag == "" ? ROOT : create_locale(splitlangtag(langtag)...)
+Locale(lang::AS, region::AS) = create_locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
+Locale(lang::AS, script::AS, region::AS) = create_locale(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
+Locale(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMPTYV, script, region, [variant], EMPTYD)
 
 # create instance and register in global cache.
-function create(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
+function create_locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
 
     lang = check_language(language, extlang)
     scri = check_script(titlecase(script))
@@ -75,7 +74,6 @@ end
 
 # utilities
 
-const SEP = '-'
 const S0 = Symbol("")
 const EMPTY_VECTOR = Symbol[]
 const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
@@ -149,9 +147,9 @@ Parse language tag and convert to Symbols and collections of Symbols.
 function splitlangtag(x::AS)
     is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
     x = transform_posix_to_iso(x) # handle and replace '.' and '@'.
-    x = replace(lowercase(x), '_', SEP) # normalize input
+    x = replace(lowercase(x), '_', SEP2) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
-    token = split(x, SEP, keep=true)
+    token = split(x, SEP2, keep=true)
     lang = ""
     langex = String[]
     scri = ""
@@ -248,15 +246,15 @@ function Base.show(io2::IO, x::Locale)
     ES = Symbol("")
     sep = ""
     io = IOBuffer()
-    x.language !== ES && ( print(io, x.language); sep = SEP )
-    x.script != ES &&  ( print(io, sep, x.script); sep = SEP )
-    x.region != ES && ( print(io, sep, x.region); sep = SEP )
+    x.language !== ES && ( print(io, x.language); sep = SEP2 )
+    x.script != ES &&  ( print(io, sep, x.script); sep = SEP2 )
+    x.region != ES && ( print(io, sep, x.region); sep = SEP2 )
     for v in x.variants
-        v != ES && ( print(io, sep, v); sep = SEP )
+        v != ES && ( print(io, sep, v); sep = SEP2 )
     end
     ltx(a::Char, b::Char) = ( a != 'x' && a < b ) || b == 'x'
     for k in sort(collect(keys(x.extensions)), lt=ltx)
-        print(io, sep, k); sep = SEP
+        print(io, sep, k); sep = SEP2
         for v in x.extensions[k]
             print(io, sep, v)
         end
@@ -436,4 +434,3 @@ function current_locales()
     end
 end
 
-end # module Locales

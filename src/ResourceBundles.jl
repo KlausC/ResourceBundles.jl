@@ -1,6 +1,6 @@
 module ResourceBundles
 
-export Locales, Locale
+export Locale
 export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
 export @tr_str, @trn_str
 export read_po_file
@@ -28,8 +28,6 @@ if VERSION < v"0.7-DEV"
 end
 
 include("locale.jl")
-
-const Locale = Locales.Locale
 
 include("resource_bundle.jl")
 include("string.jl")

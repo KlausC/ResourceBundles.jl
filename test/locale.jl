@@ -1,9 +1,11 @@
-using ResourceBundles.Locales
+using ResourceBundles
+
+import ResourceBundles: ROOT, BOTTOM
 
 # Construct Locale from language tags
-@test Locale("") === Locales.ROOT
-@test Locale("en") === Locales.ENGLISH
-@test Locale("en-US") === Locales.US
+@test Locale("") === ROOT
+@test Locale("en") === ENGLISH
+@test Locale("en-US") === US
 @test string(Locale("de")) == "de"
 @test string(Locale("de_latn")) == "de-Latn"
 @test string(Locale("de-de")) == "de-DE"
@@ -34,7 +36,7 @@ using ResourceBundles.Locales
 
 # exceptions
 create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}()) =
-    Locales.create(l, lex, s, r, v, d)
+    create_locale(l, lex, s, r, v, d)
 
 @test_throws ArgumentError#=("missing language prefix")=# Locale("a-ab")
 @test_throws ArgumentError#=("no language prefix 'a'")=# Locale("a", "")
@@ -54,8 +56,8 @@ create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}(
 @test_throws ArgumentError#=("too many language extensions 'en-abc-def-ghi-jkl'")=# Locale("en-abc-def-ghi-jkl")
 
 #various constructors
-@test Locale() === Locales.BOTTOM
-@test Locale("") === Locales.ROOT
+@test Locale() === BOTTOM
+@test Locale("") === ROOT
 @test Locale("de", "de") == Locale("de-de")
 @test Locale("de", "latn", "de") == Locale("de-Latn-de")
 @test Locale("de", "latn", "de", "bavarian") == Locale("de-Latn-de-bavarian")
@@ -94,7 +96,7 @@ create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}(
 @test !(Locale("fr-Latn") < Locale("fr-CA"))
 @test Locale("fr-Latn") ≥ Locale("fr-CA")
 
-# loading initail values from environment variables
+# loading initial values from environment variables
 delete!(ENV, "LANG")
 delete!(ENV, "LC_MESSAGES")
 delete!(ENV, "LC_COLLATE")
@@ -103,24 +105,24 @@ delete!(ENV, "LC_NUMERIC")
 delete!(ENV, "LC_MONETARY")
 
 ENV["LC_ALL"] = "en_GB"
-@test Locales.default_locale(:MESSAGES) === Locale("en-GB")
+@test default_locale(:MESSAGES) === Locale("en-GB")
 ENV["LC_ALL"] = "en_GB.utf8"
-@test Locales.default_locale(:COLLATE) === Locale("en-GB")
+@test default_locale(:COLLATE) === Locale("en-GB")
 ENV["LC_ALL"] = "en_GB.utf8@oed"
-@test Locales.default_locale(:TIME) === Locale("en-GB-x-posix-oed")
+@test default_locale(:TIME) === Locale("en-GB-x-posix-oed")
 ENV["LC_ALL"] = "en_GB@oed"
-@test Locales.default_locale(:NUMERIC) === Locale("en-GB-x-posix-oed")
+@test default_locale(:NUMERIC) === Locale("en-GB-x-posix-oed")
 
 delete!(ENV, "LC_ALL")
 ENV["LC_MONETARY"] = "en_US.utf8"
-@test Locales.default_locale(:MONETARY) === Locale("en-US")
+@test default_locale(:MONETARY) === Locale("en-US")
 ENV["LC_TIME"] = "en_CA"
-@test Locales.default_locale(:TIME) === Locales.default_locale(:LC_TIME)
+@test default_locale(:TIME) === default_locale(:LC_TIME)
 
 ENV["LC_TIME"] = ""
 delete!(ENV, "LC_MONETARY")
 ENV["LANG"] = "fr_FR@guadelo"
-@test Locales.default_locale(:TIME) === Locale("fr-FR-x-posix-guadelo")
+@test default_locale(:TIME) === Locale("fr-FR-x-posix-guadelo")
 ENV["LANG"] = "C"
-@test Locales.default_locale(:TIME) === Locale("C")
+@test default_locale(:TIME) === Locale("C")
 
