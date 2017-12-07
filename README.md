@@ -18,7 +18,7 @@ Main features:
   * detect ambiguities for individual keys
   * storage in package module directory
   * database uses files witten in Julia source code
-  * database files containing translated texts using gettext-PO format is supported (TODO)
+  * database files containing translated texts using gettext-PO format is supported
 
 * Message text localization (LC_MESSAGES)
   * a string macro providing translation of standard language according to default locale
