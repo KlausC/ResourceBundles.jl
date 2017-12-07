@@ -69,6 +69,6 @@ Locales.set_locale!(:MESSAGES, Locale("de-AT"))
 @test tr"321 $(1) $(2) $(!3)" == "321 3 2 1" #
 
 # Context
-@test_broken tr"$($testcontext)original" == "O r i g i n a l"
+@test tr"§testctx§original" == "O r i g i n a l"
 # design pending: how is context represented in 1. tr-string and 2. key in res dict ?
 

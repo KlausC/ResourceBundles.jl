@@ -85,7 +85,7 @@ function read_po_file(file::Union{AbstractString,IO})
             in_ti == 2 || error("unexpected $key '$text'")
             isempty(ti.plural) || error("several msgid_plural in line ('$ti.plural', '$text')") 
             ti.plural = text
-        elseif key == "msgctx"
+        elseif key == "msgctxt"
             in_ti == 3 && process_translation_item(ti)
             in_ti == 0 || error("unexpected $key '$text'")
             in_ti = 1
@@ -94,7 +94,7 @@ function read_po_file(file::Union{AbstractString,IO})
         end
     end
 
-    key(ctx, id) = isempty(id) ? id : isempty(ctx) ? id : "ctx($ctx)" * id
+    key(ctx, id) = isempty(id) || isempty(ctx) ? id : string(SCONTEXT, ctx, SCONTEXT, id)
     skey(ti::TranslationItem) = key(ti.context, ti.id)
     pkey(ti::TranslationItem) = key(ti.context, ti.plural)
 

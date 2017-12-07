@@ -87,8 +87,6 @@ function _string2ex1(p::AbstractString)
                     end
                 end
                 i += 1
-            elseif a isa Expr && a.head == SCONTEXT
-                args[j] = string("\$(", SCONTEXT, a.args[1], ")")
             else
                 args[j] = i
                 push!(ea, a)
@@ -129,4 +127,4 @@ end
 
 TQ = "\"\"\""   # three quote characters in a string
 SPRIME = :!     # multiplicity indicator in tr-string    tr"... $(!count) ..."
-SCONTEXT = :$   # context indicator in tr-string         tr"$($ctxname)..."
+SCONTEXT = "§"  # context separator in tr-string         tr"§ctxname§..."
