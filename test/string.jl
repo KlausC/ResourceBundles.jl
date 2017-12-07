@@ -1,6 +1,6 @@
 using ResourceBundles
 
-import ResourceBundles: set_locale!
+import ResourceBundles: set_locale!, load_file
 
 const a1 = "arg1"
 const a2 = "arg2"
@@ -72,5 +72,16 @@ set_locale!(:MESSAGES, Locale("de-AT"))
 
 # Context
 @test tr"§testctx§original" == "O r i g i n a l"
-# design pending: how is context represented in 1. tr-string and 2. key in res dict ?
+
+# evoke warnings when reading files
+io = IOBuffer()
+logging(io)
+load_file(joinpath("resources", "messages.pox"))
+mess = String(take!(io))
+@test contains(mess, "invalid extension of file name")
+
+load_file(joinpath("resources", "messages_tv.po"))
+mess = String(take!(io))
+@test contains(mess, "unexpected msgid")
+
 

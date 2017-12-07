@@ -1,0 +1,6 @@
+#
+# The reading of this file shall produce errors
+
+msgid ""
+msgid "dup"
+
