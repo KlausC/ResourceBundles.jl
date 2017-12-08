@@ -1,7 +1,7 @@
 module ResourceBundles
 
 export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
-export @tr_str
+export @tr_str, string_to_key
 
 if VERSION < v"0.7-DEV"
     macro __MODULE__()

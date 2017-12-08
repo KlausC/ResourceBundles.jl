@@ -76,6 +76,8 @@ keya = ((x->"T" * string(x)).(0:7))
 io = IOBuffer()
 logging(io, kind = :warn)
 
+locm = locale(:MESSAGES)
+
 @testset "message lookup for locale $loc and key $key" for loc in locs, key in keya
     res = results[loc, key]
     if isa(res, Tuple)
@@ -84,12 +86,21 @@ logging(io, kind = :warn)
         r, w = res, ""
     end
     @test get(bundle, loc, key, key) == r
+
+    set_locale!(:MESSAGES, loc)
+    @test get(bundle, key, key) == r
+
     warn = String(take!(io))
     @test contains(warn, w)
 end
 
+set_locale!(:MESSAGES, locm)
+
+
 take!(io)
 @test keys(bundle, Locale("")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, Locale("de")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle2) == []
 @test String(take!(io)) == ""
 @test keys(bundle, Locale("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Dict{Int64,Int64}'")
