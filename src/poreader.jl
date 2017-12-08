@@ -129,7 +129,6 @@ function read_header(str::AbstractString)
     for line in eachline(io)
         if ( m = match(REG_PLURAL, line) ) != nothing
             return translate_plural_data(m.captures[1])
-            break
         end
     end
     translate_plural_data("")

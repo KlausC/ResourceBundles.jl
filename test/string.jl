@@ -81,4 +81,7 @@ load_file(joinpath("resources", "messages_tv.po"))
 mess = String(take!(io))
 @test contains(mess, "unexpected msgid")
 
+@test string_to_key("simple") == "simple"
+@test string_to_key(raw"with $v1 and $(expr+2)") == raw"with $(1) and $(2)"
+@test string_to_key(raw"with $v1 and $(!(expr+2))") == raw"with $(2) and $(1)"
 
