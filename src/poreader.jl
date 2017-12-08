@@ -135,26 +135,41 @@ function read_header(str::AbstractString)
     translate_plural_data("")
 end
 
+module Sandbox end
+# clip output of eval(ex(n)) to interval [0, m)
+create_plural(ex::Expr, m) = n -> max(min(Base.invokelatest(eval(Sandbox, ex), n), m-1), 0)
+
+# avoid the following error when calling f by invokelatest:
+# "MethodError: no method matching (::getfield(ResourceBundles, Symbol("...")))(::Int64)
+# The applicable method may be too new: running in world age ~3, while current world is ~4."
+# This is maybe an undesirable hack - looking for more elegant work around.
+
+"""
+    translate_plural_data(string)
+
+Parses a string of form `"nplurals = expr1; plural = expr(n)"`.
+`expr1` must be a constant integer expression.
+`expr(n) must be an integer arthmetic expression with a variable `n`.
+
+Outputs the evaluation of `Int(expr1)` and of `n::Int -> expr(n)`.
+"""
 function translate_plural_data(str::AbstractString)
     nplurals = 2
     plural = n -> n != 0
-    str = replace(str, r"[:?]", s->" "*s*" ") # surround ? and : by blanks
-    for st in split(str, ';', keep = false)
-        m = match(r"^\s*(\w+)\s*=\s*(.+)\s*$", st)
-        if m != nothing && length(m.captures) == 2
-            if m.captures[1] == "nplurals"
-                ex = Meta.parse(m.captures[2])
-                nplurals = Int(eval(ex)) # evaluate right hand side
-            elseif m.captures[1] == "plural"
-                ex = :(n::Int -> $(Meta.parse(m.captures[2])))
-                # f(n::Int) = (eval(ex))(n)
-                f(n::Int) = Base.invokelatest(eval(ex), n)
-# avoid the following error when calling f by calling invokelatest:
-# MethodError: no method matching (::getfield(ResourceBundles, Symbol("...")))(::Int64)
-# The applicable method may be too new: running in world age ~3, while current world is ~4.
-# This is maybe an undesirable hack - looking for more elegant work around.
-
-                plural = n -> max(min(f(n), nplurals-1), 0)
+    str = replace(str, ':', " : ") # surround : by blanks
+    str = replace(str, '?', " ? ") # surround ? by blanks
+    str = replace(str, "/", "÷") # use Julia integer division for / 
+    top = Meta.parse(str)
+    isa(top, Expr) || return nplurals, plural
+    for a in top.args
+        if isa(a, Expr) && a.head == :(=)
+            var, ex = a.args
+            if var == :nplurals
+                nplurals = Int(eval(Sandbox, ex)) # evaluate right hand side
+            elseif var == :plural
+                ex2 = Expr(:(->), :n, ex)
+                plural = create_plural(ex2, nplurals)
+                @assert plural(1) == 0 string(ex, " not 0 for n == 1")
             end
         end
     end

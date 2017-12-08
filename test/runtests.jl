@@ -1,6 +1,9 @@
-using ResourceBundles
 test = VERSION >= v"0.7-DEV" ? :(using Test) : :(using Base.Test)
 eval(test)
+
+using ResourceBundles
+import ResourceBundles: ROOT, BOTTOM, create_locale
+import ResourceBundles: set_locale!, load_file
 
 cd(Pkg.dir("ResourceBundles"))
 

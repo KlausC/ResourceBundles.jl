@@ -1,8 +1,5 @@
 
-export Locale, default_locale, create_locale
-export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
-        SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
-export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
+export Locale, Locales, default_locale, locale, set_locale!
 
 import Base: ==, hash
 
@@ -47,6 +44,13 @@ Locale(lang::AS, region::AS) = create_locale(lang, EMPTYV, "", region, EMPTYV, E
 Locale(lang::AS, script::AS, region::AS) = create_locale(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
 Locale(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMPTYV, script, region, [variant], EMPTYD)
 
+
+# utilities
+
+const S0 = Symbol("")
+const EMPTY_VECTOR = Symbol[]
+const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
+
 # create instance and register in global cache.
 function create_locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
 
@@ -71,13 +75,6 @@ function create_locale(language::AS, extlang::Vector{String}, script::AS, region
         unlock(CACHE_LOCK)
     end
 end
-
-# utilities
-
-const S0 = Symbol("")
-const EMPTY_VECTOR = Symbol[]
-const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
-
 function check_language(x::AS, extlang::Vector{String})
     is_language(x) || length(x) == 0 || throw(ArgumentError("no language prefix '$x'"))
     x = get(OLD_TO_NEW_LANG, x, x)
@@ -269,41 +266,6 @@ end
 const CACHE = Dict{Key, Locale}()
 const CACHE_LOCK = Threads.RecursiveSpinLock()
 
-    # Languages
-    const ENGLISH = Locale("en", "")
-    const FRENCH = Locale("fr", "")
-    const GERMAN = Locale("de", "")
-    const ITALIAN = Locale("it", "")
-    const JAPANESE = Locale("ja", "")
-    const KOREAN = Locale("ko", "")
-    const CHINESE = Locale("zh", "")
-    const SIMPLIFIED_CHINESE = Locale("zh", "CN")
-    const TRADITIONAL_CHINESE = Locale("zh", "TW")
-
-    # Countries
-    const FRANCE = Locale("fr", "FR")
-    const GERMANY = Locale("de", "DE")
-    const ITALY = Locale("it", "IT")
-    const JAPAN = Locale("ja", "JP")
-    const KOREA = Locale("ko", "KR")
-    const CHINA = SIMPLIFIED_CHINESE
-    const PRC = SIMPLIFIED_CHINESE
-    const TAIWAN = TRADITIONAL_CHINESE
-    const UK = Locale("en", "GB")
-    const US = Locale("en", "US")
-    const CANADA = Locale("en", "CA")
-
-"""
-
-    ROOT
-
-Useful constant for the root locale.  The root locale is the locale whose
-language, country, and variant are empty ("") strings.  This is regarded
-as the base locale of all locales, and is used as the language/country
-neutral locale for the locale sensitive operations. 
-"""
-const ROOT = Locale("", "")
-const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
 
 """
 
@@ -433,4 +395,54 @@ function current_locales()
         task_local_storage(:CURRENT_LOCALES)
     end
 end
+
+"""
+
+    ROOT
+
+Useful constant for the root locale.  The root locale is the locale whose
+language, country, and variant are empty ("") strings.  This is regarded
+as the base locale of all locales, and is used as the language/country
+neutral locale for the locale sensitive operations. 
+"""
+const ROOT = Locale("", "")
+const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
+
+"""
+    Provide a set of commonly used Locales with language- and country names
+    in uppercase. e.g. `FRENCH`, `UK`. See also `names(Locales)`.
+"""
+module Locales
+
+    import ResourceBundles: Locale
+
+    export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
+        SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
+    export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
+
+    # Languages
+    const ENGLISH = Locale("en", "")
+    const FRENCH = Locale("fr", "")
+    const GERMAN = Locale("de", "")
+    const ITALIAN = Locale("it", "")
+    const JAPANESE = Locale("ja", "")
+    const KOREAN = Locale("ko", "")
+    const CHINESE = Locale("zh", "")
+    const SIMPLIFIED_CHINESE = Locale("zh", "CN")
+    const TRADITIONAL_CHINESE = Locale("zh", "TW")
+
+    # Countries
+    const FRANCE = Locale("fr", "FR")
+    const GERMANY = Locale("de", "DE")
+    const ITALY = Locale("it", "IT")
+    const JAPAN = Locale("ja", "JP")
+    const KOREA = Locale("ko", "KR")
+    const PRC = SIMPLIFIED_CHINESE
+    const CHINA = PRC
+    const TAIWAN = TRADITIONAL_CHINESE
+    const UK = Locale("en", "GB")
+    const US = Locale("en", "US")
+    const CANADA = Locale("en", "CA")
+
+end # module Locales
 

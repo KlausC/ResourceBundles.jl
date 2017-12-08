@@ -1,6 +1,3 @@
-using ResourceBundles
-
-import ResourceBundles: set_locale!, load_file
 
 const a1 = "arg1"
 const a2 = "arg2"

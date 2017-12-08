@@ -1,6 +1,4 @@
-using ResourceBundles
-
-import ResourceBundles: ROOT, BOTTOM
+using .Locales
 
 # Construct Locale from language tags
 @test Locale("") === ROOT

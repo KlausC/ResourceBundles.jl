@@ -1,4 +1,3 @@
-using ResourceBundles
 
 bundle = ResourceBundle(@__MODULE__, "messages")
 @test bundle.path == abspath("resources")

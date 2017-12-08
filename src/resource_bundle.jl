@@ -4,9 +4,10 @@ const LocalePattern = Locale
 const Pathname = String
 
 struct Resource
+    file::String
+    locale::Locale
     nplurals::Int
     plural::Function
-    file::String
     dict::Dict{String,<:Any}
 end
 
@@ -15,9 +16,9 @@ mutable struct Cache
     dict::Dict{LocalePattern,Resource}
 end
 
-function Resource(f::AbstractString, res::Dict{String,T}) where T
-    Resource(0, (n)->0, f, res)
-end
+#function Resource(f::AbstractString, res::Dict{String,T}) where T
+#    Resource(f, BOTTOM, 1, (n)->0, res)
+#end
 
 struct ResourceBundle
     path::Pathname
@@ -43,7 +44,6 @@ const JEND = ".jl"          # extension of Julia resource file
 const PEND = ".po"          # extension of PO resource file
 const RESOURCES = "resources"   # name of subdirectory
 const JRB = "JULIA_RESOURCE_BASE" # enviroment variable
-const LOCALE_ID = ".LOCALE_ID"  # invisible key in resource dictionaries
 
 """
     resource_path(module, name) -> String
@@ -193,7 +193,7 @@ The file content may be formattet as a gettext po file.
 
 In case of errors, a warning is printed to logging device and `nothing` is returned.
 """
-function load_file(f::AbstractString)
+function load_file(f::AbstractString, locpa::Locale=BOTTOM)
     d = nothing
     dict = nothing
     _, fext = splitext(f)
@@ -223,7 +223,7 @@ function load_file(f::AbstractString)
     if dict != nothing
         hdr = get(dict, "", "")
         nplurals, plural = read_header(hdr)
-        return Resource(nplurals, plural, f, dict)
+        return Resource(f, locpa, nplurals, plural, dict)
     end
     nothing
 end
@@ -327,7 +327,7 @@ function Base.keys(bundle::ResourceBundle, loc::Locale)
     if isempty(dlist)
         String[]
     else
-        sort!(unique(Iterators.filter(x -> x != LOCALE_ID, Iterators.flatten(dlist))))
+        sort!(unique(Iterators.flatten(dlist)))
     end
   finally
     unlock(bundle.lock)
@@ -357,11 +357,10 @@ function ensure_resource!(bundle::ResourceBundle, cache::Cache, locpa::LocalePat
     else
         resource = get_resource_by_pattern(bundle, locpa)
         if resource == nothing
-            resource = load_file(path)
+            resource = load_file(path, locpa)
         end
         if resource != nothing
             cache.dict[locpa] = resource
-            resource.dict[LOCALE_ID] = string(locpa)
         else
             push!(rlist, locpa)
         end
