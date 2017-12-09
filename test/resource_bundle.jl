@@ -99,6 +99,7 @@ set_locale!(:MESSAGES, locm)
 take!(io)
 @test keys(bundle, Locale("")) == ["T1", "T2", "T3", "T4", "T5"]
 @test keys(bundle, Locale("de")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle2) == []
 @test String(take!(io)) == ""
 
 @test keys(bundle, Locale("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
