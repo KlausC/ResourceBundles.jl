@@ -1,0 +1,3 @@
+
+"wrong type of object"
+

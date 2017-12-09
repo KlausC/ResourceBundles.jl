@@ -1,5 +1,5 @@
 
-bundle = ResourceBundle(@__MODULE__, "messages")
+bundle = ResourceBundle(@__MODULE__, "messages2")
 @test bundle.path == abspath("resources")
 
 bundle2 = ResourceBundle(ResourceBundles, "bundle")
@@ -96,12 +96,11 @@ end
 
 set_locale!(:MESSAGES, locm)
 
-
 take!(io)
 @test keys(bundle, Locale("")) == ["T1", "T2", "T3", "T4", "T5"]
 @test keys(bundle, Locale("de")) == ["T1", "T2", "T3", "T4", "T5"]
-@test keys(bundle2) == []
 @test String(take!(io)) == ""
+
 @test keys(bundle, Locale("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Dict{Int64,Int64}'")
 @test keys(bundle, Locale("de-us-america")) == ["T1", "T2", "T3", "T4", "T5"]
@@ -109,21 +108,24 @@ take!(io)
 @test keys(bundle, Locale("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Void'")
 @test keys(bundle3, Locale("")) == String[]
+@test keys(bundle) == ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "hello"]
 
-@test resource_bundle(@__MODULE__, "messages") === RB_messages
+@test resource_bundle(@__MODULE__, "messages2") === RB_messages2
 @test resource_bundle(@__MODULE__, "bundle") === RB_bundle
 @test @resource_bundle("d1n2e").path == ""
 
 bundlea = @resource_bundle("bundle")
 @test bundlea === RB_bundle
 
+# Test in submodule Main.XXX
 module XXX
     using ResourceBundles
     eval(Main.test)
-    @test @resource_bundle("messages") === RB_messages
-    @test Main.XXX.RB_messages === Main.RB_messages
+    @test @resource_bundle("messages2") === RB_messages2
+    @test Main.XXX.RB_messages2 === Main.RB_messages2
     @test @resource_bundle("bundle") === RB_bundle
     @test Main.XXX.RB_bundle !== Main.RB_bundle
+    # Test in submodule Main.XXX.YYY
     module YYY
     using ResourceBundles
     eval(Main.test)
@@ -132,21 +134,32 @@ module XXX
     end
 end
 
-@test resource_bundle(ResourceBundles, "messages") === ResourceBundles.RB_messages
+@test resource_bundle(ResourceBundles, "messages2") === ResourceBundles.RB_messages2
 @test resource_bundle(ResourceBundles, "bundle") === ResourceBundles.RB_bundle
 
 bundlea = eval(ResourceBundles, :(@resource_bundle("bundle")))
 @test bundlea === ResourceBundles.RB_bundle
 
+# test in submodule ResourceBundles.XXX
 eval(ResourceBundles, :(module XXX
         using ResourceBundles
         eval(Main.test)
         
         @test string(@__MODULE__) == "ResourceBundles.XXX" 
-        @test @resource_bundle("messages") === RB_messages
-        @test ResourceBundles.XXX.RB_messages === ResourceBundles.RB_messages
+        @test @resource_bundle("messages2") === RB_messages2
+        @test ResourceBundles.XXX.RB_messages2 === ResourceBundles.RB_messages2
         @test @resource_bundle("bundle") === RB_bundle
         @test ResourceBundles.XXX.RB_bundle !== ResourceBundles.RB_bundle
     end )
 )
+
+lpa = ResourceBundles.locale_pattern
+
+@test lpa(".jl") == Locale("")
+@test lpa("-en.jl") == Locale("en")
+@test lpa("_en.jl") == Locale("en")
+@test lpa("/en.jl") == Locale("en")
+@test lpa("-en/.jl") == Locale("en")
+@test lpa("/en/.jl") == Locale("en")
+@test lpa("/en./jl") == nothing
 

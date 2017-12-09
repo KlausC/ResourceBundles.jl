@@ -150,12 +150,13 @@ function findfiles(bundle::ResourceBundle, loc::Locale)
     name = bundle.name
     flist = Dict{LocalePattern,Pathname}() # 
     prefix = joinpath(dir, name)
+    np = sizeof(prefix)
     if dir != "."
         for (root, dirs, files) in walkdir(dir)
             for f in files
                 file = joinpath(root, f)
                 if startswith(file, prefix)
-                    locpa = locale_pattern(file, prefix)
+                    locpa = locale_pattern(file[nextind(f,np):end])
                     if locpa != nothing && !haskey(flist, locpa) && loc ⊆ locpa
                         push!(flist, locpa => file)
                     end
@@ -168,14 +169,18 @@ function findfiles(bundle::ResourceBundle, loc::Locale)
 end
 
 # derive locale pattern from file path
-function locale_pattern(f::AbstractString, name::AbstractString)
+function locale_pattern(f::AbstractString)
+    d, f = splitdir(f)
     f, fext = splitext(f)
-    if startswith(f, name) && ( fext == JEND || fext == PEND )
-        n = sizeof(name)
-        x = String(f[nextind(f, n, 2):end])
-        x = replace(x, Filesystem.path_separator, SEP)
-        x = replace(x, SEP2, SEP)
-        Locale(String(x))
+    if isempty(fext) && startswith(f, ".")
+        f, fext = "", f
+    end
+    ( fext == JEND || fext == PEND ) || return nothing
+    f = isempty(f) ? d : joinpath(d, f)
+    f = replace(f, Filesystem.path_separator, SEP)
+    f = replace(f, SEP2, SEP)
+    if isempty(f) || f[1] == SEP
+        Locale(f[nextind(f, 1):end])
     else
         nothing
     end
