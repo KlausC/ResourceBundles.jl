@@ -94,18 +94,8 @@ function read_po_file(file::Union{AbstractString,IO})
         end
     end
 
-    key(ctx, id) = isempty(id) || isempty(ctx) ? id : string(SCONTEXT, ctx, SCONTEXT, id)
-    skey(ti::TranslationItem) = key(ti.context, ti.id)
-    pkey(ti::TranslationItem) = key(ti.context, ti.plural)
-
     function process_translation_item(ti::TranslationItem)
-        val = map(p->p.second, sort(collect(ti.strings)))
-        if length(val) == 1 && isempty(ti.plural)
-            val = val[1]
-        end
-        !isempty(ti.id) && push!(dict, skey(ti) => val)
-        !isempty(ti.plural) && ti.plural != ti.id && push!(dict, pkey(ti) => val)
-        isempty(ti.id) && isempty(ti.plural) && push!(dict, "" => val)
+        add_translation_item!(dict, ti)
         init_ti!(ti)
         in_ti = 0
     end
@@ -124,6 +114,78 @@ function read_po_file(file::Union{AbstractString,IO})
     dict
 end
 
+"""
+    read_mo_file(f::AbstractString)
+
+Read a file, which contains text data according to the MO format of gettext.
+two separate key-value pairs are generated, with identical '('typical array')' value.
+"""
+function read_mo_file(f::AbstractString)
+    MAGIC = 0x950412de
+    NUL = '\x00' # separates different elements of msgid and msgstr (plural forms)
+    EOT = '\x04' # separates msgctxt from msgid
+    dict = Vector{Pair{String,Union{String,Vector{String}}}}()
+    ti = TranslationItem()
+
+    open(f, "r") do fp
+        data = read(fp)
+        d = reinterpret(UInt32, data[1:4])
+        le_machine = ENDIAN_BOM == 0x01020304
+        le_file = d[1] == MAGIC
+        le_file || ntoh(d[1]) == MAGIC || error("wrong magic number - no MO-file format")
+        d = reinterpret(Int32, data[5:(end÷4)*4])
+        if le_machine != le_file
+            conv = le_file ? ltoh : ntoh
+            d = conv.(d)
+        end
+        rel, n, origp, tranp, hsize, hashp = d[1:6]
+        origp, tranp, hashp = origp÷4, tranp÷4, hashp÷4
+        rel == 0 || error("version id '$rel' in MO-file - only supported: '0x0' ")
+        for i = 0:2:2n-1
+            leno = d[origp+i]
+            ptro = d[origp+i+1]
+            lent = d[tranp+i]
+            ptrt = d[tranp+i+1]
+            stro = String(data[ptro+1:ptro+leno])  
+            strt = String(data[ptrt+1:ptrt+lent])  
+            ix = searchindex(stro, EOT)
+            ti.context = stro[1:prevind(stro, ix)]
+            stro = stro[nextind(stro, ix):end]
+            ix = searchindex(stro, NUL)
+            ix == 0 && ( ix = nextind(stro, sizeof(stro)) )
+            ti.id = stro[1:prevind(stro, ix)]
+            ti.plural = stro[nextind(stro, ix):end]
+            strtlist = string.(split(strt, NUL))
+            ti.strings = Dict(enumerate(strtlist))
+            add_translation_item!(dict, ti)
+            init_ti!(ti)
+        end
+    end
+    dict
+end
+
+# add translation item to output vector
+function add_translation_item!(dict::Vector, ti::TranslationItem)
+    val = map(p->p.second, sort(collect(ti.strings)))
+    if length(val) == 1 && isempty(ti.plural)
+        val = val[1]
+    end
+    !isempty(ti.id) && push!(dict, skey(ti) => val)
+    !isempty(ti.plural) && ti.plural != ti.id && push!(dict, pkey(ti) => val)
+    isempty(ti.id) && isempty(ti.plural) && push!(dict, "" => val)
+    ti
+end
+
+# Format strings with and without context information
+key(ctx, id) = isempty(id) || isempty(ctx) ? id : string(SCONTEXT, ctx, SCONTEXT, id)
+skey(ti::TranslationItem) = key(ti.context, ti.id)
+pkey(ti::TranslationItem) = key(ti.context, ti.plural)
+
+"""
+    read_header(string)
+
+Extract plural data (nplurals and function plural(n)) from string.
+"""
 function read_header(str::AbstractString)
     io = IOBuffer(str)
     for line in eachline(io)

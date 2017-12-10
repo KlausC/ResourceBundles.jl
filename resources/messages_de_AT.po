@@ -16,7 +16,7 @@ msgstr ""
 "X-Language: de_DE\n"
 
 #: test.jl:505
-msgid ""
+msgid "These are $(1) houses"
 msgid_plural "These are $(1) houses"
 msgstr[0] "Das ist ein Haus"
 msgstr[1] "Das sind $(1) Häuser"
@@ -30,7 +30,7 @@ msgstr "$(2) Beine gehören zu $(1) Hunden"
 msgid "In $(1) the temperature was above $(2) °C"
 msgstr "Die Temperatur von $(2) °C wurde in $(1) überschritten"
 
-msgid ""
+msgid "In $(2) the temperature was above $(3) °C at $(1) days"
 msgid_plural "In $(2) the temperature was above $(3) °C at $(1) days"
 msgstr[0] "In $(2) war die Temperatur an einem \"Tag\" über $(3) °C"
 msgstr[1] "In $(2) war die Temperatur an $(1) Tagen über $(3) °C"

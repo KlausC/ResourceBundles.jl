@@ -24,4 +24,6 @@ include("resource_bundle.jl")
 include("string.jl")
 include("poreader.jl")
 
+include("libc.jl")
+
 end # module ResourceBundles
