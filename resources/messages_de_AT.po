@@ -96,3 +96,9 @@ msgctxt "testctx"
 msgid "original"
 msgstr "O r i g i n a l"
 
+msgctxt "testctx"
+msgid "original $(1)"
+msgid_plural "original plural $(1)"
+msgstr[0] "O r i g i n a l 2"
+msgstr[1] "O r i g i n a l 3"
+

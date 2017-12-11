@@ -36,6 +36,7 @@ set_locale!(:MESSAGES, Locale("fr"))
 @test tr"These are $(10) houses" == "Ce sont beaucoup(10) de maisons"
 @test tr"These are $h0 houses" == "C'est 0 maison"
 
+# data for this locale are stored in po-file
 set_locale!(:MESSAGES, Locale("de-AT"))
 @test tr"These are $(1) houses" == "Das ist ein Haus"
 @test tr"These are $(hmany*3+3) houses" == "Das sind 42 Häuser"
@@ -72,7 +73,7 @@ set_locale!(:MESSAGES, Locale("de-AT"))
 
 # evoke warnings when reading files
 io = IOBuffer()
-logging(io)
+logging(io, kind=:warn)
 load_file(joinpath("resources", "messages.pox"))
 mess = String(take!(io))
 @test contains(mess, "invalid extension of file name")
@@ -81,7 +82,15 @@ load_file(joinpath("resources", "messages_tv.po"))
 mess = String(take!(io))
 @test contains(mess, "unexpected msgid")
 
+logging()
 @test string_to_key("simple") == "simple"
 @test string_to_key(raw"with $v1 and $(expr+2)") == raw"with $(1) and $(2)"
 @test string_to_key(raw"with $v1 and $(!(expr+2))") == raw"with $(2) and $(1)"
 
+# data for this locale are stored in little-endian mo-file
+set_locale!(:MESSAGES, Locale("de-LU"))
+@test tr"§testctx§original" == "O r i g i n a l"
+
+# data for this locale are stored in big-endian mo-file
+set_locale!(:MESSAGES, Locale("de-CH"))
+@test tr"§testctx§original" == "O r i g i n a l"

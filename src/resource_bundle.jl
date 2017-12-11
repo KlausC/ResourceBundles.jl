@@ -42,6 +42,8 @@ const SEP = '_'
 const SEP2 = '-'
 const JEND = ".jl"          # extension of Julia resource file
 const PEND = ".po"          # extension of PO resource file
+const MEND = ".mo"          # extension of MO resource file
+
 const RESOURCES = "resources"   # name of subdirectory
 const JRB = "JULIA_RESOURCE_BASE" # enviroment variable
 
@@ -113,7 +115,7 @@ function is_resourcepath(path::AbstractString, name::AbstractString)
     stp = name * string(SEP)
     function resind(f::AbstractString)
         fname, fext = splitext(f)
-        startswith(f, stp) || ( fname == name && ( fext == JEND || fext == PEND ) )
+        startswith(f, stp) || ( fname == name && ( fext == JEND || fext == PEND || fext == MEND ) )
     end
     any(resind, readdir(path))
 end
@@ -175,7 +177,7 @@ function locale_pattern(f::AbstractString)
     if isempty(fext) && startswith(f, ".")
         f, fext = "", f
     end
-    ( fext == JEND || fext == PEND ) || return nothing
+    ( fext == JEND || fext == PEND || fext == MEND ) || return nothing
     f = isempty(f) ? d : joinpath(d, f)
     f = replace(f, Filesystem.path_separator, SEP)
     f = replace(f, SEP2, SEP)
@@ -204,6 +206,8 @@ function load_file(f::AbstractString, locpa::Locale=BOTTOM)
     _, fext = splitext(f)
     if fext == JEND
         d = load_file_jl(f)
+    elseif fext == MEND
+        d = load_file_mo(f)
     elseif fext == PEND
         d = load_file_po(f)
     else
@@ -233,25 +237,20 @@ function load_file(f::AbstractString, locpa::Locale=BOTTOM)
     nothing
 end
 
-function load_file_jl(f::AbstractString)
+function load_file_typed(f::AbstractString, readf::Function)
     d = nothing
     try
-        d = include(f)
+        d = readf(f)
+        info("loaded resource file $f")
     catch ex
-        warn(ex)
+        warn("loading resource file '$f': $ex")
     end
     d
 end
 
-function load_file_po(f::AbstractString)
-    d = nothing
-    try
-        d = read_po_file(f)
-    catch ex
-        warn(ex)
-    end
-    d
-end
+load_file_jl(f::AbstractString) = load_file_typed(f, include)
+load_file_po(f::AbstractString) = load_file_typed(f, read_po_file)
+load_file_mo(f::AbstractString) = load_file_typed(f, read_mo_file)
 
 import Base.get
 """

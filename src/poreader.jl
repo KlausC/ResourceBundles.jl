@@ -121,45 +121,48 @@ Read a file, which contains text data according to the MO format of gettext.
 two separate key-value pairs are generated, with identical '('typical array')' value.
 """
 function read_mo_file(f::AbstractString)
-    MAGIC = 0x950412de
+    MAGIC = 0x950412de # little-endian form
     NUL = '\x00' # separates different elements of msgid and msgstr (plural forms)
     EOT = '\x04' # separates msgctxt from msgid
     dict = Vector{Pair{String,Union{String,Vector{String}}}}()
     ti = TranslationItem()
 
-    open(f, "r") do fp
-        data = read(fp)
-        d = reinterpret(UInt32, data[1:4])
-        le_machine = ENDIAN_BOM == 0x01020304
-        le_file = d[1] == MAGIC
-        le_file || ntoh(d[1]) == MAGIC || error("wrong magic number - no MO-file format")
-        d = reinterpret(Int32, data[5:(end÷4)*4])
-        if le_machine != le_file
-            conv = le_file ? ltoh : ntoh
-            d = conv.(d)
-        end
-        rel, n, origp, tranp, hsize, hashp = d[1:6]
-        origp, tranp, hashp = origp÷4, tranp÷4, hashp÷4
-        rel == 0 || error("version id '$rel' in MO-file - only supported: '0x0' ")
-        for i = 0:2:2n-1
-            leno = d[origp+i]
-            ptro = d[origp+i+1]
-            lent = d[tranp+i]
-            ptrt = d[tranp+i+1]
-            stro = String(data[ptro+1:ptro+leno])  
-            strt = String(data[ptrt+1:ptrt+lent])  
-            ix = searchindex(stro, EOT)
-            ti.context = stro[1:prevind(stro, ix)]
-            stro = stro[nextind(stro, ix):end]
-            ix = searchindex(stro, NUL)
-            ix == 0 && ( ix = nextind(stro, sizeof(stro)) )
-            ti.id = stro[1:prevind(stro, ix)]
-            ti.plural = stro[nextind(stro, ix):end]
-            strtlist = string.(split(strt, NUL))
-            ti.strings = Dict(enumerate(strtlist))
-            add_translation_item!(dict, ti)
-            init_ti!(ti)
-        end
+    data = open(f, "r") do fp
+        read(fp)
+    end
+    datal = sizeof(data)
+    datal >= 28 || error("file too short - no MO file format")
+    d = reinterpret(UInt32, data[1:28])
+    le_machine = ENDIAN_BOM == 0x04030201
+    le_file = d[1] == MAGIC
+    le_file || ntoh(d[1]) == MAGIC || error("wrong magic number - no MO-file format")
+    conv = le_file ? ltoh : ntoh
+    le_machine != le_file && ( d = conv.(d) )
+    magic, rev, n, origp, tranp, hsize, hashp = d[1:7]
+    revma, revmi = rev >> 16, rev & 0xffff
+    origp, tranp, hashp = origp÷4, tranp÷4, hashp÷4
+    revma == 0 || error("revision id ($revma,$revmi) in MO-file - only supported: (0, x)")
+    datal >= (tranp+2n)*4 || error("file too short - no MO file format")
+    d = reinterpret(Int32, data[5:(tranp+2n)*4])
+    le_machine != le_file && ( d = conv.(d) )
+    for i = 0:2:2n-1
+        leno = d[origp+i]
+        ptro = d[origp+i+1]
+        lent = d[tranp+i]
+        ptrt = d[tranp+i+1]
+        stro = String(data[ptro+1:ptro+leno])  
+        strt = String(data[ptrt+1:ptrt+lent])  
+        ix = searchindex(stro, EOT)
+        ti.context = stro[1:prevind(stro, ix)]
+        stro = stro[nextind(stro, ix):end]
+        ix = searchindex(stro, NUL)
+        ix == 0 && ( ix = nextind(stro, sizeof(stro)) )
+        ti.id = stro[1:prevind(stro, ix)]
+        ti.plural = stro[nextind(stro, ix):end]
+        strtlist = string.(split(strt, NUL))
+        ti.strings = Dict(enumerate(strtlist))
+        add_translation_item!(dict, ti)
+        init_ti!(ti)
     end
     dict
 end
