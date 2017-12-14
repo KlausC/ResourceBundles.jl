@@ -1,37 +1,11 @@
 
+using .Constants
+using .LangTagTranslations
+
 export LangTag, Locales, default_locale, locale, set_locale!, current_locales
 
 import Base: ==, hash
 
-include("locale_iso_data.jl")
-
-"""
-
-    LangTag
-
-See: https://tools.ietf.org/html/bcp47
-"""
-struct LangTag
-    language::Symbol
-    script::Symbol
-    region::Symbol
-    variants::Vector{Symbol}
-    extensions::Dict{Char,Vector{Symbol}}
-end
-
-mutable struct Locale
-    dict::Dict{Symbol,LangTag}
-    cloc::Ptr{Void}
-    Locale(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
-end
-
-const AS = AbstractString
-const VariantVector = Vector{Symbol}
-const ExtensionDict = Dict{Char,VariantVector}
-const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, ExtensionDict}
-
-const EMPTYV = String[]
-const EMPTYD = ExtensionDict()
 
 """
 
@@ -53,12 +27,9 @@ LangTag(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMP
 
 # utilities
 
-const S0 = Symbol("")
-const EMPTY_VECTOR = Symbol[]
-const EMPTY_DICT = Dict{Char,Vector{Symbol}}()
 
 # create instance and register in global cache.
-function create_locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Dict{Char,Vector{Symbol}})
+function create_locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::ExtensionDict)
 
     lang = check_language(language, extlang)
     scri = check_script(titlecase(script))
@@ -149,8 +120,8 @@ Parse language tag and convert to Symbols and collections of Symbols.
 """
 function splitlangtag(x::AS)
     is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
-    x = transform_posix_to_iso(x) # handle and replace '.' and '@'.
-    x = replace(lowercase(x), '_', SEP2) # normalize input
+    x = cloc_to_loc(x) # handle and replace '.' and '@'.
+    x = replace(lowercase(x), SEP, SEP2) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
     token = split(x, SEP2, keep=true)
     lang = ""
@@ -354,32 +325,6 @@ function get2(f::Function, k::Any)
     v == "" ? f() : v
 end
 
-"""
-
-    transform_posix_to_iso(posix::String) -> iso-string
-
-Posix string has the general form `<lang_country>][.<charset>][@<extension>]`.
-We transform this to the following string:
-`<lang_country>][-x-posix-<extension>]`.
-The charset is ignored. The extension is optional in input and output.
-"""
-function transform_posix_to_iso(ploc::String)
-    if ploc == "C" || ploc == "POSIX"
-        return ""
-    end
-    a = split(ploc, '.')
-    if length(a) <= 1
-        b = split(a[1], '@')
-        if length(b) > 1
-            a[1] = b[1]
-        end
-    else
-        b = split(a[2], '@')
-    end
-    length(b) <= 1 && return a[1]
-    return a[1] * "-x-posix-" * join(b[2:end], '-')
-end
-
 function Locale()
     gloc = Locale(Ptr{Void}(0))
     for cat in ALL_CATEGORIES
@@ -391,9 +336,6 @@ end
 function all_default_categories()
     Dict{Symbol,LangTag}([x => ROOT for x in ALL_CATEGORIES])
 end
-
-const ALL_CATEGORIES = [ :CTYPE, :NUMERIC, :TIME, :COLLATE, :MONETARY, :MESSAGES, :ALL,
-                    :PAPER, :NAME, :ADDRESS, :TELEPHONE, :MEASUREMENTS, :IDENTIFICATION ]
 
 function current_locales()
     tld = task_local_storage()
@@ -413,6 +355,7 @@ function finalize_gloc(gloc::Locale)
     end
 end
 
+
 """
 
     ROOT
@@ -423,7 +366,7 @@ as the base locale of all locales, and is used as the language/country
 neutral locale for the locale sensitive operations. 
 """
 const ROOT = LangTag("", "")
-const BOTTOM = LangTag(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
+const BOTTOM = LangTag(:Bot, S0, S0, EMPTY_VECTOR, EMPTYD) 
 
 """
     Provide a set of commonly used LangTag with language- and country names
