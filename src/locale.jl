@@ -1,5 +1,5 @@
 
-export Locale, Locales, default_locale, locale, set_locale!
+export Locale, Locales, default_locale, locale, set_locale!, current_locales
 
 import Base: ==, hash
 
@@ -17,6 +17,12 @@ struct Locale
     region::Symbol
     variants::Vector{Symbol}
     extensions::Dict{Char,Vector{Symbol}}
+end
+
+mutable struct GlobalLocaleSet
+    dict::Dict{Symbol,Locale}
+    cloc::Ptr{Void}
+    GlobalLocaleSet(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
 end
 
 const AS = AbstractString
@@ -284,19 +290,24 @@ end
 
     set_locale!(category, locale)
 
-Set current locale as stored in global variable.
+Set current locale as stored in task-local variable.
 Category :ALL sets all defined categories to the same locale.
 Throw exception if category is not :ALL or one of the
 supported categories of `locale`.
 """
-function set_locale!(category::Symbol, loc::Locale)
-    cld = current_locales().dict
-    for cat in keys(cld)
-        if cat == category || category == :ALL
-            cld[cat] = loc
+set_locale!(cat::Symbol, loc::Locale) = set_locale!(current_locales(), cat, loc)
+function set_locale!(gloc::GlobalLocaleSet, cat::Symbol, loc::Locale)
+    cld = gloc.dict
+    valid = keys(cld)
+    cat in valid || error("unsupported category: $cat")
+    if cat == :ALL
+        for c in valid
+            cld[c] = loc
         end
     end
-    category == :ALL ? loc : locale(category)
+    cld[cat] = loc
+    gloc.cloc = CLocales.newlocale(cat, loc, gloc.cloc)
+    loc
 end
 
 """
@@ -353,7 +364,7 @@ We transform this to the following string:
 The charset is ignored. The extension is optional in input and output.
 """
 function transform_posix_to_iso(ploc::String)
-    if ploc == "C"
+    if ploc == "C" || ploc == "POSIX"
         return ""
     end
     a = split(ploc, '.')
@@ -369,30 +380,36 @@ function transform_posix_to_iso(ploc::String)
     return a[1] * "-x-posix-" * join(b[2:end], '-')
 end
 
-struct GlobalLocaleSet
-    dict::Dict{Symbol,Locale}
-    GlobalLocaleSet() = new(all_default_categories())
+function GlobalLocaleSet()
+    gloc = GlobalLocaleSet(Ptr{Void}(0))
+    for cat in ALL_CATEGORIES
+        set_locale!(gloc, cat, default_locale(cat))
+    end
+    gloc
 end
 
 function all_default_categories()
-    dict = Dict{Symbol,Locale}(
-                :COLLATE => default_locale(:COLLATE),
-                :CTYPE => default_locale(:CTYPE),
-                :TIME => default_locale(:TIME),
-                :MESSAGES => default_locale(:MESSAGES),
-                :MONETARY => default_locale(:MONETARY),
-                :NUMERIC  => default_locale(:NUMERIC),
-                :TIME => default_locale(:TIME),
-            )
-
+    Dict{Symbol,Locale}([x => ROOT for x in ALL_CATEGORIES])
 end
+
+const ALL_CATEGORIES = [ :CTYPE, :NUMERIC, :TIME, :COLLATE, :MONETARY, :MESSAGES, :ALL,
+                    :PAPER, :NAME, :ADDRESS, :TELEPHONE, :MEASUREMENTS, :IDENTIFICATION ]
 
 function current_locales()
     tld = task_local_storage()
     if !haskey(tld, :CURRENT_LOCALES)
-        task_local_storage(:CURRENT_LOCALES, GlobalLocaleSet())
+        gloc = GlobalLocaleSet() # create and fill with default values from ENV
+        finalizer(finalize_gloc, gloc)
+        task_local_storage(:CURRENT_LOCALES, gloc)
     else
         task_local_storage(:CURRENT_LOCALES)
+    end
+end
+
+function finalize_gloc(x::GlobalLocaleSet)
+    empty!(gloc.dict)
+    if gloc.cloc != Ptr{Void}(0)
+        CLocales.freelocale(gloc.cloc)
     end
 end
 
