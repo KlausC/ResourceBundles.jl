@@ -15,62 +15,62 @@ bundle4 = ResourceBundle(Test, "XXX")
 @test_throws ArgumentError ResourceBundle(Main, "d_n_e")
 
 const results = Dict(
-    (Locale(""), "T0") => "T0",
-    (Locale(""), "T1") => "T1 - empty",
-    (Locale(""), "T2") => "T2 - empty",
-    (Locale(""), "T3") => "T3 - empty",
-    (Locale(""), "T4") => "T4 - empty",
-    (Locale(""), "T5") => "T5 - empty",
-    (Locale(""), "T6") => "T6",
-    (Locale(""), "T7") => "T7",
+    (LangTag(""), "T0") => "T0",
+    (LangTag(""), "T1") => "T1 - empty",
+    (LangTag(""), "T2") => "T2 - empty",
+    (LangTag(""), "T3") => "T3 - empty",
+    (LangTag(""), "T4") => "T4 - empty",
+    (LangTag(""), "T5") => "T5 - empty",
+    (LangTag(""), "T6") => "T6",
+    (LangTag(""), "T7") => "T7",
 
-    (Locale("en"), "T0") => "T0",
-    (Locale("en"), "T1") => "T1 - empty",
-    (Locale("en"), "T2") => "T2 - en",
-    (Locale("en"), "T3") => "T3 - en",
-    (Locale("en"), "T4") => "T4 - en",
-    (Locale("en"), "T5") => "T5 - en",
-    (Locale("en"), "T6") => "T6",
-    (Locale("en"), "T7") => "T7",
+    (LangTag("en"), "T0") => "T0",
+    (LangTag("en"), "T1") => "T1 - empty",
+    (LangTag("en"), "T2") => "T2 - en",
+    (LangTag("en"), "T3") => "T3 - en",
+    (LangTag("en"), "T4") => "T4 - en",
+    (LangTag("en"), "T5") => "T5 - en",
+    (LangTag("en"), "T6") => "T6",
+    (LangTag("en"), "T7") => "T7",
 
-    (Locale("en-US"), "T0") => "T0",
-    (Locale("en-US"), "T1") => "T1 - empty",
-    (Locale("en-US"), "T2") => "T2 - en",
-    (Locale("en-US"), "T3") => "T3 - en_US",
-    (Locale("en-US"), "T4") => "T4 - en",
-    (Locale("en-US"), "T5") => "T5 - en_US",
-    (Locale("en-US"), "T6") => "T6 - en_US",
-    (Locale("en-US"), "T7") => "T7 - en_US",
+    (LangTag("en-US"), "T0") => "T0",
+    (LangTag("en-US"), "T1") => "T1 - empty",
+    (LangTag("en-US"), "T2") => "T2 - en",
+    (LangTag("en-US"), "T3") => "T3 - en_US",
+    (LangTag("en-US"), "T4") => "T4 - en",
+    (LangTag("en-US"), "T5") => "T5 - en_US",
+    (LangTag("en-US"), "T6") => "T6 - en_US",
+    (LangTag("en-US"), "T7") => "T7 - en_US",
 
-    (Locale("en-Latn"), "T0") => "T0",
-    (Locale("en-Latn"), "T1") => "T1 - empty",
-    (Locale("en-Latn"), "T2") => "T2 - en",
-    (Locale("en-Latn"), "T3") => "T3 - en",
-    (Locale("en-Latn"), "T4") => "T4 - en_Latn",
-    (Locale("en-Latn"), "T5") => "T5 - en_Latn",
-    (Locale("en-Latn"), "T6") => "T6 - en_Latn",
-    (Locale("en-Latn"), "T7") => "T7",
+    (LangTag("en-Latn"), "T0") => "T0",
+    (LangTag("en-Latn"), "T1") => "T1 - empty",
+    (LangTag("en-Latn"), "T2") => "T2 - en",
+    (LangTag("en-Latn"), "T3") => "T3 - en",
+    (LangTag("en-Latn"), "T4") => "T4 - en_Latn",
+    (LangTag("en-Latn"), "T5") => "T5 - en_Latn",
+    (LangTag("en-Latn"), "T6") => "T6 - en_Latn",
+    (LangTag("en-Latn"), "T7") => "T7",
 
-    (Locale("en-Latn-US"), "T0") => "T0",
-    (Locale("en-Latn-US"), "T1") => "T1 - empty",
-    (Locale("en-Latn-US"), "T2") => "T2 - en",
-    (Locale("en-Latn-US"), "T3") => "T3 - en_US",
-    (Locale("en-Latn-US"), "T4") => "T4 - en_Latn",
-    (Locale("en-Latn-US"), "T5") => "T5 - en_Latn_US",
-    (Locale("en-Latn-US"), "T6") => ("T6 - en_Latn", "Ambiguous"),
-    (Locale("en-Latn-US"), "T7") => "T7 - en_US",
+    (LangTag("en-Latn-US"), "T0") => "T0",
+    (LangTag("en-Latn-US"), "T1") => "T1 - empty",
+    (LangTag("en-Latn-US"), "T2") => "T2 - en",
+    (LangTag("en-Latn-US"), "T3") => "T3 - en_US",
+    (LangTag("en-Latn-US"), "T4") => "T4 - en_Latn",
+    (LangTag("en-Latn-US"), "T5") => "T5 - en_Latn_US",
+    (LangTag("en-Latn-US"), "T6") => ("T6 - en_Latn", "Ambiguous"),
+    (LangTag("en-Latn-US"), "T7") => "T7 - en_US",
 
-    (Locale("en-x-1"), "T0") => "T0",
-    (Locale("en-x-1"), "T1") => "T1 - empty",
-    (Locale("en-x-1"), "T2") => "T2 - en",
-    (Locale("en-x-1"), "T3") => "T3 - en",
-    (Locale("en-x-1"), "T4") => "T4 - en",
-    (Locale("en-x-1"), "T5") => "T5 - en",
-    (Locale("en-x-1"), "T6") => "T6",
-    (Locale("en-x-1"), "T7") => "T7",
+    (LangTag("en-x-1"), "T0") => "T0",
+    (LangTag("en-x-1"), "T1") => "T1 - empty",
+    (LangTag("en-x-1"), "T2") => "T2 - en",
+    (LangTag("en-x-1"), "T3") => "T3 - en",
+    (LangTag("en-x-1"), "T4") => "T4 - en",
+    (LangTag("en-x-1"), "T5") => "T5 - en",
+    (LangTag("en-x-1"), "T6") => "T6",
+    (LangTag("en-x-1"), "T7") => "T7",
 )
 
-locs = Locale.(("", "en", "en-US", "en-Latn", "en-Latn-US", "en-x-1"))
+locs = LangTag.(("", "en", "en-US", "en-Latn", "en-Latn-US", "en-x-1"))
 keya = ((x->"T" * string(x)).(0:7))
 
 io = IOBuffer()
@@ -97,18 +97,18 @@ end
 set_locale!(:MESSAGES, locm)
 
 take!(io)
-@test keys(bundle, Locale("")) == ["T1", "T2", "T3", "T4", "T5"]
-@test keys(bundle, Locale("de")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, LangTag("")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, LangTag("de")) == ["T1", "T2", "T3", "T4", "T5"]
 @test keys(bundle2) == []
 @test String(take!(io)) == ""
 
-@test keys(bundle, Locale("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, LangTag("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Dict{Int64,Int64}'")
-@test keys(bundle, Locale("de-us-america")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, LangTag("de-us-america")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'String'")
-@test keys(bundle, Locale("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
+@test keys(bundle, LangTag("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
 @test contains(String(take!(io)), "Wrong type 'Void'")
-@test keys(bundle3, Locale("")) == String[]
+@test keys(bundle3, LangTag("")) == String[]
 @test keys(bundle) == ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "hello"]
 
 @test resource_bundle(@__MODULE__, "messages2") === RB_messages2
@@ -156,11 +156,11 @@ eval(ResourceBundles, :(module XXX
 
 lpa = ResourceBundles.locale_pattern
 
-@test lpa(".jl") == Locale("")
-@test lpa("-en.jl") == Locale("en")
-@test lpa("_en.jl") == Locale("en")
-@test lpa("/en.jl") == Locale("en")
-@test lpa("-en/.jl") == Locale("en")
-@test lpa("/en/.jl") == Locale("en")
+@test lpa(".jl") == LangTag("")
+@test lpa("-en.jl") == LangTag("en")
+@test lpa("_en.jl") == LangTag("en")
+@test lpa("/en.jl") == LangTag("en")
+@test lpa("-en/.jl") == LangTag("en")
+@test lpa("/en/.jl") == LangTag("en")
 @test lpa("/en./jl") == nothing
 

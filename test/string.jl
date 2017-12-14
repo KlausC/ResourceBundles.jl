@@ -13,7 +13,7 @@ ndhi = 15
 
 logging()
 
-set_locale!(:MESSAGES, Locale("en-us"))
+set_locale!(:MESSAGES, LangTag("en-us"))
 @test tr"T3" == "T3 - en_US"
 @test tr"original $a1($a2) : $(a3*2)" == "US version $(a3*2) / $a2 $a1"
 
@@ -28,7 +28,7 @@ set_locale!(:MESSAGES, Locale("en-us"))
 @test tr"These are $(0) houses" == "This is not a house"
 @test tr"These are $(hmany-hmany) houses" == "This is not a house"
 
-set_locale!(:MESSAGES, Locale("fr"))
+set_locale!(:MESSAGES, LangTag("fr"))
 @test tr"original $a1($a2) : $(a3*2)" == "original $a1($a2) : $(a3*2)"
 
 @test tr"These are $(1) houses" == "C'est 1 maison"
@@ -37,7 +37,7 @@ set_locale!(:MESSAGES, Locale("fr"))
 @test tr"These are $h0 houses" == "C'est 0 maison"
 
 # data for this locale are stored in po-file
-set_locale!(:MESSAGES, Locale("de-AT"))
+set_locale!(:MESSAGES, LangTag("de-AT"))
 @test tr"These are $(1) houses" == "Das ist ein Haus"
 @test tr"These are $(hmany*3+3) houses" == "Das sind 42 Häuser"
 @test tr"These are $(10) houses" == "Das sind 10 Häuser"
@@ -88,9 +88,9 @@ logging()
 @test string_to_key(raw"with $v1 and $(!(expr+2))") == raw"with $(2) and $(1)"
 
 # data for this locale are stored in little-endian mo-file
-set_locale!(:MESSAGES, Locale("de-LU"))
+set_locale!(:MESSAGES, LangTag("de-LU"))
 @test tr"§testctx§original" == "O r i g i n a l"
 
 # data for this locale are stored in big-endian mo-file
-set_locale!(:MESSAGES, Locale("de-CH"))
+set_locale!(:MESSAGES, LangTag("de-CH"))
 @test tr"§testctx§original" == "O r i g i n a l"

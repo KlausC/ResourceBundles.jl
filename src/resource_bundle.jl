@@ -1,11 +1,11 @@
 using Base.Filesystem
 
-const LocalePattern = Locale
+const LocalePattern = LangTag
 const Pathname = String
 
 struct Resource
     file::String
-    locale::Locale
+    locale::LangTag
     nplurals::Int
     plural::Function
     dict::Dict{String,<:Any}
@@ -23,12 +23,12 @@ end
 struct ResourceBundle
     path::Pathname
     name::String
-    cache::Dict{Locale,Cache}
+    cache::Dict{LangTag,Cache}
     lock::Threads.RecursiveSpinLock
     function ResourceBundle(path::Pathname, name::AbstractString)
         ( !isempty(name) && all(isalnum, name) ) ||
             throw(ArgumentError("resource names require alphanumeric but is `$name`"))
-        new(path, string(name), Dict{Locale,Cache}(), Threads.RecursiveSpinLock())
+        new(path, string(name), Dict{LangTag,Cache}(), Threads.RecursiveSpinLock())
     end
 end
 
@@ -143,11 +143,11 @@ characters `_` or `/`.
 The list is sorted with most specific locale-pattern first. The list needs not be totally
 ordered (with respect to `⊆`, which allows ambiguous
 
-Example: for `Locale("de-DE")`, the resource files could be `name_de_DE.jl` or 
+Example: for `LangTag("de-DE")`, the resource files could be `name_de_DE.jl` or 
 `name_de/DE.jl` or `name/de_DE.jl` or `name/de/DE.jl`. If more than one of those files exist,
 only the first one (in topdown-order of `walkdir`) is used.
 """
-function findfiles(bundle::ResourceBundle, loc::Locale)
+function findfiles(bundle::ResourceBundle, loc::LangTag)
     dir = normpath(bundle.path)
     name = bundle.name
     flist = Dict{LocalePattern,Pathname}() # 
@@ -182,7 +182,7 @@ function locale_pattern(f::AbstractString)
     f = replace(f, Filesystem.path_separator, SEP)
     f = replace(f, SEP2, SEP)
     if isempty(f) || f[1] == SEP
-        Locale(f[nextind(f, 1):end])
+        LangTag(f[nextind(f, 1):end])
     else
         nothing
     end
@@ -200,7 +200,7 @@ The file content may be formattet as a gettext po file.
 
 In case of errors, a warning is printed to logging device and `nothing` is returned.
 """
-function load_file(f::AbstractString, locpa::Locale=BOTTOM)
+function load_file(f::AbstractString, locpa::LangTag=BOTTOM)
     d = nothing
     dict = nothing
     _, fext = splitext(f)
@@ -260,7 +260,7 @@ Return value associated with the locale and key.
 If the locale is not given, use the ResourceBundles current locale for messages. 
 If no default value is given, return `nothing`.
 """
-function get(bundle::ResourceBundle, loc::Locale, key::AbstractString, default=nothing)
+function get(bundle::ResourceBundle, loc::LangTag, key::AbstractString, default=nothing)
     resource = get_resource_by_key(bundle, loc, key)
     resource != nothing ? get(resource.dict, key, default) : default
 end
@@ -271,13 +271,13 @@ end
 Get resource object which contains key. It also provides multiplicity information.
 If the key is not found in any resource file, return `nothing`.
 """
-function get_resource_by_key(bundle::ResourceBundle, loc::Locale, key::AbstractString)
+function get_resource_by_key(bundle::ResourceBundle, loc::LangTag, key::AbstractString)
   try
     lock(bundle.lock)    
     cache =  initcache!(bundle, loc)
     flist = cache.list
     rlist = Vector()
-    xloc = Locale("")
+    xloc = LangTag("")
     val = nothing
     for (locpa, path) in flist
         resource = ensure_resource!(bundle, cache, locpa, path, rlist)
@@ -313,7 +313,7 @@ import Base.keys
 
 Return array of all defined keys for a specific locale or all possible locales.
 """
-function Base.keys(bundle::ResourceBundle, loc::Locale)
+function Base.keys(bundle::ResourceBundle, loc::LangTag)
   try
     lock(bundle.lock)    
     cache = initcache!(bundle, loc)
@@ -348,7 +348,7 @@ function clean_cache_list(cache::Cache, rlist::Vector)
 end
 
 # select all potential source dictionaries for given locale. 
-function initcache!(bundle::ResourceBundle, loc::Locale)
+function initcache!(bundle::ResourceBundle, loc::LangTag)
     get!(bundle.cache, loc) do
         findfiles(bundle, loc)
     end

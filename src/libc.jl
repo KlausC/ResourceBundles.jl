@@ -1,32 +1,32 @@
 
 module CLocales
-import ResourceBundles: Locale, S0, current_locales
+import ResourceBundles: LangTag, S0, current_locales
 
 export newlocale, duplocale, freelocale, nl_langinfo
 export strcoll, strxfrm, LC_NUMBER, LC_GLOBAL_LOCALE
 
 const CLocaleType = Ptr{Void}
 
-function newlocale(mask::Int, loc::Locale, base::CLocaleType = CL0)
+function newlocale(mask::Int, loc::LangTag, base::CLocaleType = CL0)
     cloc = Clocale(loc)
     cmask = fixmask(mask)
     newlocale_c(cmask, cloc, base)
 end
 
-function newlocale(sym::Symbol, loc::Locale, base::CLocaleType) where N
+function newlocale(sym::Symbol, loc::LangTag, base::CLocaleType) where N
     cloc = Clocale(loc)
     mask = sym2mask(sym)
     newlocale_c(mask, cloc, base)
 end
 
-function newlocale(syms::NTuple{N,Symbol}, loc::Locale, base::CLocaleType) where N
+function newlocale(syms::NTuple{N,Symbol}, loc::LangTag, base::CLocaleType) where N
     cloc = Clocale(loc)
     mask = sym2mask(syms...)
     newlocale_c(mask, cloc, base)
 end
 
 strcoll(a::AbstractString, b::AbstractString) = strcoll_c(a, b, current_clocale())
-function strcoll(a::AbstractString, b::AbstractString, loc::Locale)
+function strcoll(a::AbstractString, b::AbstractString, loc::LangTag)
     ploc = newlocale(LC_COLLATE_MASK, loc)
     if ploc != CL0
         res = strcoll(a, b, Clocale(loc))
@@ -101,9 +101,9 @@ function sym2mask(syms::Symbol...)
     mask
 end
 
-# translations from Locale to String in POSIX Format
+# translations from LangTag to String in POSIX Format
 
-function Clocale(loc::Locale)
+function Clocale(loc::LangTag)
     s = string(loc)
     if s == "C" || s == "POSIX"
         return s

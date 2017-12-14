@@ -1,5 +1,5 @@
 
-export Locale, Locales, default_locale, locale, set_locale!, current_locales
+export LangTag, Locales, default_locale, locale, set_locale!, current_locales
 
 import Base: ==, hash
 
@@ -7,11 +7,11 @@ include("locale_iso_data.jl")
 
 """
 
-    Locale
+    LangTag
 
 See: https://tools.ietf.org/html/bcp47
 """
-struct Locale
+struct LangTag
     language::Symbol
     script::Symbol
     region::Symbol
@@ -19,10 +19,10 @@ struct Locale
     extensions::Dict{Char,Vector{Symbol}}
 end
 
-mutable struct GlobalLocaleSet
-    dict::Dict{Symbol,Locale}
+mutable struct Locale
+    dict::Dict{Symbol,LangTag}
     cloc::Ptr{Void}
-    GlobalLocaleSet(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
+    Locale(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
 end
 
 const AS = AbstractString
@@ -35,20 +35,20 @@ const EMPTYD = ExtensionDict()
 
 """
 
-    Locale(languagetag::String))
-    Locale(lang, region)
-    Locale(lang, script, region)
-    Locale(lang, script, region, variant)
-    Locale("") -> ROOT
-    Locale() -> BOTTOM
+    LangTag(languagetag::String))
+    LangTag(lang, region)
+    LangTag(lang, script, region)
+    LangTag(lang, script, region, variant)
+    LangTag("") -> ROOT
+    LangTag() -> BOTTOM
 
-Return `Locale` object from cache or create new one and register in cache.
+Return `LangTag` object from cache or create new one and register in cache.
 """
-Locale() = BOTTOM
-Locale(langtag::AS) = langtag == "" ? ROOT : create_locale(splitlangtag(langtag)...)
-Locale(lang::AS, region::AS) = create_locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
-Locale(lang::AS, script::AS, region::AS) = create_locale(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
-Locale(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMPTYV, script, region, [variant], EMPTYD)
+LangTag() = BOTTOM
+LangTag(langtag::AS) = langtag == "" ? ROOT : create_locale(splitlangtag(langtag)...)
+LangTag(lang::AS, region::AS) = create_locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
+LangTag(lang::AS, script::AS, region::AS) = create_locale(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
+LangTag(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMPTYV, script, region, [variant], EMPTYD)
 
 
 # utilities
@@ -75,7 +75,7 @@ function create_locale(language::AS, extlang::Vector{String}, script::AS, region
     try
         lock(CACHE_LOCK)
         get!(CACHE, key) do
-            Locale(key...)
+            LangTag(key...)
         end
     finally
         unlock(CACHE_LOCK)
@@ -209,7 +209,7 @@ is_alnum(x::AS) = all(isalnum, x)
 is_alnumsep(x::AS) = all(c->isascii(c) && ( isalnum(c) || c in "-_.@" ), x)
 
 # equality
-function ==(x::Locale, y::Locale)
+function ==(x::LangTag, y::LangTag)
     x === y && return true
     x.language == y.language &&
     x.script == y.script &&
@@ -218,11 +218,11 @@ function ==(x::Locale, y::Locale)
     x.extensions == y.extensions
 end
 
-function hash(x::Locale, h::UInt)
+function hash(x::LangTag, h::UInt)
     hash(x.extensions, hash(x.variants, hash(x.region, hash(x.script, hash(x.language, h)))))
 end
 
-function Base.issubset(x::Locale, y::Locale)
+function Base.issubset(x::LangTag, y::LangTag)
     ( x == y || x == BOTTOM || y == ROOT ) && return true
     y == BOTTOM && return false
     issublang(x.language, y.language) &&
@@ -242,10 +242,10 @@ function issubext(x::Dict{Char,Vector{Symbol}}, y::Dict{Char,Vector{Symbol}})
     all(k-> issubset(y[k], x[k]), ky)
 end
 
-Base.isless(x::Locale, y::Locale) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
-islexless(x::Locale, y::Locale) = string(x) < string(y)
+Base.isless(x::LangTag, y::LangTag) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
+islexless(x::LangTag, y::LangTag) = string(x) < string(y)
 
-function Base.show(io2::IO, x::Locale)
+function Base.show(io2::IO, x::LangTag)
     ES = Symbol("")
     sep = ""
     io = IOBuffer()
@@ -269,7 +269,7 @@ function Base.show(io2::IO, x::Locale)
     print(io2, out)
 end
 
-const CACHE = Dict{Key, Locale}()
+const CACHE = Dict{Key, LangTag}()
 const CACHE_LOCK = Threads.RecursiveSpinLock()
 
 
@@ -295,8 +295,8 @@ Category :ALL sets all defined categories to the same locale.
 Throw exception if category is not :ALL or one of the
 supported categories of `locale`.
 """
-set_locale!(cat::Symbol, loc::Locale) = set_locale!(current_locales(), cat, loc)
-function set_locale!(gloc::GlobalLocaleSet, cat::Symbol, loc::Locale)
+set_locale!(cat::Symbol, loc::LangTag) = set_locale!(current_locales(), cat, loc)
+function set_locale!(gloc::Locale, cat::Symbol, loc::LangTag)
     cld = gloc.dict
     valid = keys(cld)
     cat in valid || error("unsupported category: $cat")
@@ -327,7 +327,7 @@ MONETARY    format of monetary values
 TIME        date/time formats
 """
 function default_locale(category::Union{Symbol,AbstractString})
-    Locale(posix_locale(string(category)))
+    LangTag(posix_locale(string(category)))
 end
 
 """
@@ -380,8 +380,8 @@ function transform_posix_to_iso(ploc::String)
     return a[1] * "-x-posix-" * join(b[2:end], '-')
 end
 
-function GlobalLocaleSet()
-    gloc = GlobalLocaleSet(Ptr{Void}(0))
+function Locale()
+    gloc = Locale(Ptr{Void}(0))
     for cat in ALL_CATEGORIES
         set_locale!(gloc, cat, default_locale(cat))
     end
@@ -389,7 +389,7 @@ function GlobalLocaleSet()
 end
 
 function all_default_categories()
-    Dict{Symbol,Locale}([x => ROOT for x in ALL_CATEGORIES])
+    Dict{Symbol,LangTag}([x => ROOT for x in ALL_CATEGORIES])
 end
 
 const ALL_CATEGORIES = [ :CTYPE, :NUMERIC, :TIME, :COLLATE, :MONETARY, :MESSAGES, :ALL,
@@ -398,7 +398,7 @@ const ALL_CATEGORIES = [ :CTYPE, :NUMERIC, :TIME, :COLLATE, :MONETARY, :MESSAGES
 function current_locales()
     tld = task_local_storage()
     if !haskey(tld, :CURRENT_LOCALES)
-        gloc = GlobalLocaleSet() # create and fill with default values from ENV
+        gloc = Locale() # create and fill with default values from ENV
         finalizer(finalize_gloc, gloc)
         task_local_storage(:CURRENT_LOCALES, gloc)
     else
@@ -406,7 +406,7 @@ function current_locales()
     end
 end
 
-function finalize_gloc(x::GlobalLocaleSet)
+function finalize_gloc(gloc::Locale)
     empty!(gloc.dict)
     if gloc.cloc != Ptr{Void}(0)
         CLocales.freelocale(gloc.cloc)
@@ -422,44 +422,44 @@ language, country, and variant are empty ("") strings.  This is regarded
 as the base locale of all locales, and is used as the language/country
 neutral locale for the locale sensitive operations. 
 """
-const ROOT = Locale("", "")
-const BOTTOM = Locale(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
+const ROOT = LangTag("", "")
+const BOTTOM = LangTag(:Bot, S0, S0, EMPTY_VECTOR, EMPTY_DICT) 
 
 """
-    Provide a set of commonly used Locales with language- and country names
+    Provide a set of commonly used LangTag with language- and country names
     in uppercase. e.g. `FRENCH`, `UK`. See also `names(Locales)`.
 """
 module Locales
 
-    import ResourceBundles: Locale
+    import ResourceBundles: LangTag
 
     export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
         SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
     export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA
 
     # Languages
-    const ENGLISH = Locale("en", "")
-    const FRENCH = Locale("fr", "")
-    const GERMAN = Locale("de", "")
-    const ITALIAN = Locale("it", "")
-    const JAPANESE = Locale("ja", "")
-    const KOREAN = Locale("ko", "")
-    const CHINESE = Locale("zh", "")
-    const SIMPLIFIED_CHINESE = Locale("zh", "CN")
-    const TRADITIONAL_CHINESE = Locale("zh", "TW")
+    const ENGLISH = LangTag("en", "")
+    const FRENCH = LangTag("fr", "")
+    const GERMAN = LangTag("de", "")
+    const ITALIAN = LangTag("it", "")
+    const JAPANESE = LangTag("ja", "")
+    const KOREAN = LangTag("ko", "")
+    const CHINESE = LangTag("zh", "")
+    const SIMPLIFIED_CHINESE = LangTag("zh", "CN")
+    const TRADITIONAL_CHINESE = LangTag("zh", "TW")
 
     # Countries
-    const FRANCE = Locale("fr", "FR")
-    const GERMANY = Locale("de", "DE")
-    const ITALY = Locale("it", "IT")
-    const JAPAN = Locale("ja", "JP")
-    const KOREA = Locale("ko", "KR")
+    const FRANCE = LangTag("fr", "FR")
+    const GERMANY = LangTag("de", "DE")
+    const ITALY = LangTag("it", "IT")
+    const JAPAN = LangTag("ja", "JP")
+    const KOREA = LangTag("ko", "KR")
     const PRC = SIMPLIFIED_CHINESE
     const CHINA = PRC
     const TAIWAN = TRADITIONAL_CHINESE
-    const UK = Locale("en", "GB")
-    const US = Locale("en", "US")
-    const CANADA = Locale("en", "CA")
+    const UK = LangTag("en", "GB")
+    const US = LangTag("en", "US")
+    const CANADA = LangTag("en", "CA")
 
-end # module Locales
+end # module LocaleTag
 
