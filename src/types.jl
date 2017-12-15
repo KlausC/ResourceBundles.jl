@@ -1,12 +1,12 @@
 
 """
 
-    struct LangTag
+    struct LocaleId
 
 Represent a Languange Tag, also known as Locale Identifier as defined by BCP47.
 See: https://tools.ietf.org/html/bcp47
 """
-struct LangTag
+struct LocaleId
     language::Symbol
     script::Symbol
     region::Symbol
@@ -23,7 +23,7 @@ Parallel to that the libc implementation of locale is kept as a cache.
 It is maintained by the libc functions `newlocale` / `freelocale`.
 """
 mutable struct Locale
-    dict::Dict{Symbol,LangTag}
+    dict::Dict{Symbol,LocaleId}
     cloc::Ptr{Void}
     Locale(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
 end

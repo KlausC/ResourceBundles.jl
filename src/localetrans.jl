@@ -4,7 +4,7 @@ transformation between locale identifiers in differnet forms
 1. form used by POSIX:  <lang>_<region>[.<charset>][@<cextension>]
 2. form used by BCP47:  <lang>[_<script>][_<region>][-<variant>][-lextensions]
 """
-module LangTagTranslations
+module LocaleIdTranslations
 
 using ResourceBundles
 import ResourceBundles: SEP
@@ -81,12 +81,12 @@ const EXTENSIONS_IGNORE = ["euro"]
 const S0 = Symbol("")
 
 """
-    loc_to_cloc(loc::LangTag) -> POSIX string
+    loc_to_cloc(loc::LocaleId) -> POSIX string
 
-Translate from LangTag to String in POSIX Format.
+Translate from LocaleId to String in POSIX Format.
 Comparable with cloc_to_loc.
 """
-function loc_to_cloc(loc::LangTag)
+function loc_to_cloc(loc::LocaleId)
     s = string(loc)
     if s == "C" || uppercase(s) == "POSIX"
         return s

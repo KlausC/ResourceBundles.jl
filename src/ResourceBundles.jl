@@ -1,7 +1,7 @@
 module ResourceBundles
 
 export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
-export LangTag
+export LocaleId
 export @tr_str, string_to_key
 
 if VERSION < v"0.7-DEV"
