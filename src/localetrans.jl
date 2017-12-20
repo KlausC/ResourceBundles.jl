@@ -7,13 +7,14 @@ transformation between locale identifiers in differnet forms
 module LocaleIdTranslations
 
 using ResourceBundles
+using Unicode
 import ResourceBundles: SEP
 
 export cloc_to_loc, loc_to_cloc, all_locales
 
 """
 
-    cloc_to_loc(posix::String) -> iso-string
+    cloc_to_loc(posix::String) -> unicode-locale-id-string
 
 Posix string has the general form `<lang>[_<country>][.<charset>][@<extension>]`.
 We transform this to the following string:
@@ -22,8 +23,9 @@ The `@extension` may be transformed to a <script>, a variant, or a private exten
 The charset is ignored. The extension is optional in input and output.
 """
 function cloc_to_loc(cloc::String)
+    cloc == "" && return cloc
     if cloc == "C" || uppercase(cloc) == "POSIX"
-        return ""
+        return "C"
     end
     m = match(REG_POSIX, lowercase(cloc))
     m != nothing || return cloc
@@ -88,9 +90,8 @@ Comparable with cloc_to_loc.
 """
 function loc_to_cloc(loc::LocaleId)
     s = string(loc)
-    if s == "C" || uppercase(s) == "POSIX"
-        return s
-    end
+    s == "C" || uppercase(s) == "POSIX" && return "C"
+    s == "" && return s
     lang = loc.language
     reg = loc.region
     script = loc.script

@@ -18,10 +18,10 @@ function strcoll_c(s1::AbstractString, s2::AbstractString, ploc::CLocaleType)
     res = 0
     if ploc == CL0
         ploc = current_clocale()
-    end
-    if ploc != CL0
         res = ccall(:strcoll_l, Cint, (Cstring, Cstring, CLocaleType), s1, s2, ploc)
         freelocale(ploc)
+    else
+        res = ccall(:strcoll_l, Cint, (Cstring, Cstring, CLocaleType), s1, s2, ploc)
     end
     Int(res)
 end

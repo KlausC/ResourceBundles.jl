@@ -2,7 +2,7 @@
 using .Constants
 using .LocaleIdTranslations
 
-export LocaleId, Locales, default_locale, locale, set_locale!, current_locales
+export LocaleId, Locales, default_locale, locale, set_locale!
 
 import Base: ==, hash
 
@@ -19,17 +19,17 @@ import Base: ==, hash
 Return `LocaleId` object from cache or create new one and register in cache.
 """
 LocaleId() = BOTTOM
-LocaleId(langtag::AS) = langtag == "" ? ROOT : create_locale(splitlangtag(langtag)...)
-LocaleId(lang::AS, region::AS) = create_locale(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
-LocaleId(lang::AS, script::AS, region::AS) = create_locale(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
-LocaleId(lang::AS, script::AS, region::AS, variant::AS) = create_locale(lang, EMPTYV, script, region, [variant], EMPTYD)
+LocaleId(langtag::AS) = langtag == "" ? ROOT : create_locid(splitlangtag(langtag)...)
+LocaleId(lang::AS, region::AS) = create_locid(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
+LocaleId(lang::AS, script::AS, region::AS) = create_locid(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
+LocaleId(lang::AS, script::AS, region::AS, variant::AS) = create_locid(lang, EMPTYV, script, region, [variant], EMPTYD)
 
 
 # utilities
 
 
 # create instance and register in global cache.
-function create_locale(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::ExtensionDict)
+function create_locid(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::ExtensionDict)
 
     lang = check_language(language, extlang)
     scri = check_script(titlecase(script))
@@ -72,7 +72,7 @@ end
 
 function is_language(x::AS)
     len = length(x)
-    2 <= len <= 8 && is_alpha(x)
+    (2 <= len <= 8 && is_alpha(x)) || len == 1 && uppercase(x) == "C"
 end
 
 function is_langext(x::AS)
@@ -234,7 +234,7 @@ function Base.show(io2::IO, x::LocaleId)
         end
     end
     out = String(take!(io))
-    if out == ""
+    if out == "c"
         out = "C"
     end
     print(io2, out)
@@ -254,30 +254,29 @@ Valid categories are
 :CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
 """
 function locale(category::Symbol)
-    current_locales().dict[category]
+    locale().dict[category]
 end
 
 """
 
-    set_locale!(category, locale)
+    set_locale!([gloc::Locale, ]locale::LocaleId[, category::Symbol...])
 
-Set current locale as stored in task-local variable.
-Category :ALL sets all defined categories to the same locale.
-Throw exception if category is not :ALL or one of the
-supported categories of `locale`.
+Set contents of locale in selected categories.
+Missing category or :ALL sets all defined categories to the same locale.
+If `gloc` is not given, the current task-specific locale is used.
+Throw exception if category is not :ALL or one of the supported categories of `locale`.
 """
-set_locale!(cat::Symbol, loc::LocaleId) = set_locale!(current_locales(), cat, loc)
-function set_locale!(gloc::Locale, cat::Symbol, loc::LocaleId)
+set_locale!(loc::LocaleId, cats::Symbol...) = set_locale!(locale(), loc, cats...)
+
+function set_locale!(gloc::Locale, loc::LocaleId, cats::Symbol...)
     cld = gloc.dict
-    valid = keys(cld)
-    cat in valid || error("unsupported category: $cat")
-    if cat == :ALL
-        for c in valid
-            cld[c] = loc
-        end
+    valid = keys(cld) 
+    cats ⊆ valid || :ALL in cats || error("unsupported categories in $cats")
+    cat2 = :ALL in cats || isempty(cats) ? valid : cats
+    for cat in cat2
+        cld[cat] = loc == LocaleId() ? default_locale(cat) : loc
     end
-    cld[cat] = loc
-    gloc.cloc = CLocales.newlocale(cat, loc, gloc.cloc)
+    gloc.cloc = CLocales.newlocale(loc, gloc.cloc, cats...)
     loc
 end
 
@@ -328,7 +327,7 @@ end
 function Locale()
     gloc = Locale(Ptr{Void}(0))
     for cat in ALL_CATEGORIES
-        set_locale!(gloc, cat, default_locale(cat))
+        set_locale!(gloc, default_locale(cat), cat)
     end
     gloc
 end
@@ -337,7 +336,7 @@ function all_default_categories()
     Dict{Symbol,LocaleId}([x => ROOT for x in ALL_CATEGORIES])
 end
 
-function current_locales()
+function locale()
     tld = task_local_storage()
     if !haskey(tld, :CURRENT_LOCALES)
         gloc = Locale() # create and fill with default values from ENV

@@ -1,4 +1,5 @@
 using Base.Filesystem
+using Unicode
 
 const LocalePattern = LocaleId
 const Pathname = String
@@ -52,7 +53,7 @@ const JRB = "JULIA_RESOURCE_BASE" # enviroment variable
 
 Return path name of resource directory for a module containing data for `name`.
 If top module is `Main` the path is derived from enviroment `JULIA_RESOURCE_BASE`.
-If `JULIA_HOME/../../stdlib/<module>/resources` is a directory, we assume
+If `Sys.BINDIR/../../stdlib/<module>/resources` is a directory, we assume
 the resources of a module in the standard library.
 Otherwise the directory `Pkg.dir()/<module>/resources` is selected; that is
 the usual case for user defined modules.
@@ -94,11 +95,11 @@ Return installation directory for module `mod`.
 """
 function package_path(name)
     name = string(name)
-    path1 = normpath(JULIA_HOME, "..", "..", "stdlib", name)
+    path1 = normpath(Sys.BINDIR, "..", "..", "stdlib", name)
     path2 = Pkg.dir(name)
     is1 = isdir(path1)
     is2 = isdir(path2)
-    is1 && is2 && warn("module '$name' has same name as stdlib module")
+    is1 && is2 && @warn("module '$name' has same name as stdlib module")
     splitdir(is2 ? path2 : is1 ? path1 : name)[1]
 end
 
@@ -158,7 +159,7 @@ function findfiles(bundle::ResourceBundle, loc::LocaleId)
             for f in files
                 file = joinpath(root, f)
                 if startswith(file, prefix)
-                    locpa = locale_pattern(file[nextind(f,np):end])
+                    locpa = locale_pattern(file[nextind(file,np):end])
                     if locpa != nothing && !haskey(flist, locpa) && loc ⊆ locpa
                         push!(flist, locpa => file)
                     end
@@ -181,7 +182,9 @@ function locale_pattern(f::AbstractString)
     f = isempty(f) ? d : joinpath(d, f)
     f = replace(f, Filesystem.path_separator, SEP)
     f = replace(f, SEP2, SEP)
-    if isempty(f) || f[1] == SEP
+    if isempty(f)
+        LocaleId("")
+    elseif f[1] == SEP
         LocaleId(f[nextind(f, 1):end])
     else
         nothing
@@ -211,7 +214,7 @@ function load_file(f::AbstractString, locpa::LocaleId=BOTTOM)
     elseif fext == PEND
         d = load_file_po(f)
     else
-        warn("invalid extension of file name '$f'")
+        @warn("invalid extension of file name '$f'")
     end
     
     if isa(d, Union{Vector{T},NTuple{N,Pair},T} where {T<:Pair,N})
@@ -223,10 +226,10 @@ function load_file(f::AbstractString, locpa::LocaleId=BOTTOM)
         if el[1] <: String
             dict = d
         else
-            warn("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
+            @warn("Wrong type 'Dict{$(el[1]),$(el[2])}' loaded from '$f'")
         end
     else
-        warn("Wrong type '$(typeof(d))' loaded from '$f' is not a dictionary")
+        @warn("Wrong type '$(typeof(d))' loaded from '$f' is not a dictionary")
     end
     
     if dict != nothing
@@ -241,9 +244,9 @@ function load_file_typed(f::AbstractString, readf::Function)
     d = nothing
     try
         d = readf(f)
-        info("loaded resource file $f")
+        @debug("loaded resource file $f")
     catch ex
-        warn("loading resource file '$f': $ex")
+        @warn("loading resource file '$f': $ex")
     end
     d
 end
@@ -289,7 +292,7 @@ function get_resource_by_key(bundle::ResourceBundle, loc::LocaleId, key::Abstrac
                 if xloc ⊆ locpa
                     break
                 else
-                    warn("Ambiguous key '", key, "' for ", loc, " in patterns ", xloc, " and ", locpa)
+                    @warn string("Ambiguous key '", key, "' for ", loc, " in patterns ", xloc, " and ", locpa)
                 end
             end
         end

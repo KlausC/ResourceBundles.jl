@@ -30,11 +30,11 @@ using .Locales
 @test LocaleId("en-a-aa-b-bb") ⊆ LocaleId("en-b-bb")
 @test hash(LocaleId("is-a-aa-b-bb")) == hash(LocaleId("is-b-bb-a-aa"))
 @test LocaleId("is-a-aa-b-bb") === LocaleId("is-b-bb-a-aa")
-@test LocaleId("C") === LocaleId("")
+@test LocaleId("C") != LocaleId("")
 
 # exceptions
 create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}()) =
-    create_locale(l, lex, s, r, v, d)
+    create_locid(l, lex, s, r, v, d)
 
 @test_throws ArgumentError#=("missing language prefix")=# LocaleId("a-ab")
 @test_throws ArgumentError#=("no language prefix 'a'")=# LocaleId("a", "")

@@ -1,3 +1,4 @@
+using Logging
 
 bundle = ResourceBundle(@__MODULE__, "messages2")
 @test bundle.path == abspath("resources")
@@ -73,8 +74,7 @@ const results = Dict(
 locs = LocaleId.(("", "en", "en-US", "en-Latn", "en-Latn-US", "en-x-1"))
 keya = ((x->"T" * string(x)).(0:7))
 
-io = IOBuffer()
-logging(io, kind = :warn)
+log = Test.TestLogger(min_level=Logging.Warn)
 
 locm = locale(:MESSAGES)
 
@@ -85,32 +85,36 @@ locm = locale(:MESSAGES)
     else
         r, w = res, ""
     end
-    @test get(bundle, loc, key, key) == r
-
-    set_locale!(:MESSAGES, loc)
-    @test get(bundle, key, key) == r
-
-    warn = String(take!(io))
-    @test contains(warn, w)
+    with_logger(log) do
+        @test get(bundle, loc, key, key) == r
+        @test test_log(log, w)
+    
+        set_locale!(loc, :MESSAGES)
+        @test get(bundle, key, key) == r
+        test_log(log, w)
+    end
 end
 
-set_locale!(:MESSAGES, locm)
+set_locale!(locm, :MESSAGES)
 
-take!(io)
-@test keys(bundle, LocaleId("")) == ["T1", "T2", "T3", "T4", "T5"]
-@test keys(bundle, LocaleId("de")) == ["T1", "T2", "T3", "T4", "T5"]
-@test keys(bundle2) == []
-@test String(take!(io)) == ""
+with_logger(log) do
+    @test keys(bundle, LocaleId("")) == ["T1", "T2", "T3", "T4", "T5"]
+    @test keys(bundle, LocaleId("de")) == ["T1", "T2", "T3", "T4", "T5"]
+    @test keys(bundle2) == []
+    @test test_log(log)
 
-@test keys(bundle, LocaleId("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
-@test contains(String(take!(io)), "Wrong type 'Dict{Int64,Int64}'")
-@test keys(bundle, LocaleId("de-us-america")) == ["T1", "T2", "T3", "T4", "T5"]
-@test contains(String(take!(io)), "Wrong type 'String'")
-@test keys(bundle, LocaleId("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
-@test contains(String(take!(io)), "Wrong type 'Void'")
-@test keys(bundle3, LocaleId("")) == String[]
-@test keys(bundle) == ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "hello"]
+    @test keys(bundle, LocaleId("de-us")) == ["T1", "T2", "T3", "T4", "T5"]
+    @test test_log(log, "Wrong type 'Dict{Int64,Int64}'")
 
+    @test keys(bundle, LocaleId("de-us-america")) == ["T1", "T2", "T3", "T4", "T5"]
+    @test test_log(log, "Wrong type 'String'")
+
+    @test keys(bundle, LocaleId("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
+    @test test_log(log, "Wrong type 'Void'")
+
+    @test keys(bundle3, LocaleId("")) == String[]
+    @test keys(bundle) == ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "hello"]
+end
 @test resource_bundle(@__MODULE__, "messages2") === RB_messages2
 @test resource_bundle(@__MODULE__, "bundle") === RB_bundle
 @test @resource_bundle("d1n2e").path == ""

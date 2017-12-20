@@ -153,12 +153,16 @@ function read_mo_file(f::AbstractString)
         stro = String(data[ptro+1:ptro+leno])  
         strt = String(data[ptrt+1:ptrt+lent])  
         ix = searchindex(stro, EOT)
-        ti.context = stro[1:prevind(stro, ix)]
-        stro = stro[nextind(stro, ix):end]
+        if ix > 0
+            ti.context = stro[1:prevind(stro, ix)]
+            stro = stro[nextind(stro, ix):end]
+        end
         ix = searchindex(stro, NUL)
-        ix == 0 && ( ix = nextind(stro, sizeof(stro)) )
-        ti.id = stro[1:prevind(stro, ix)]
-        ti.plural = stro[nextind(stro, ix):end]
+        if ix > 0
+            ti.plural = stro[nextind(stro, ix):end]
+            stro = stro[1:prevind(stro, ix)]
+        end
+        ti.id = stro
         strtlist = string.(split(strt, NUL))
         ti.strings = Dict(enumerate(strtlist))
         add_translation_item!(dict, ti)

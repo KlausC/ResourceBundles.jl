@@ -3,29 +3,50 @@ module CLocales
 
 using ResourceBundles
 using ResourceBundles.LocaleIdTranslations
-import ResourceBundles: LocaleId, S0, current_locales, CLocaleType
+import ResourceBundles: LocaleId, S0, locale, CLocaleType
 
-export newlocale, duplocale, freelocale, nl_langinfo
-export strcoll, strxfrm, LC_NUMBER, LC_GLOBAL_LOCALE
+export current_locale, newlocale, duplocale, freelocale, nl_langinfo, clocale_name
+export nl_item
+export strcoll, strxfrm, LC_NUMBER, LC_GLOBAL_LOCALE, LC_ALL_MASK
+export LC_CTYPE, LC_NUMERIC, LC_TIME, LC_COLLATE, LC_MONETARY, LC_MESSAGES, LC_ALL
+export LC_PAPER, LC_NAME, LC_ADDRESS, LC_TELEPHONE, LC_MEASUREMENT, LC_IDENTIFICATION
 
-function newlocale(mask::Int, loc::LocaleId, base::CLocaleType = CL0)
-    cloc = loc_to_cloc(loc)
-    cmask = fixmask(mask)
-    newlocale_c(cmask, cloc, base)
-end
+"""
+    newlocale(loc::LocaleId[, base::CLocaleType], categories...)::CLocaleType
 
-function newlocale(sym::Symbol, loc::LocaleId, base::CLocaleType) where N
-    cloc = loc_to_cloc(loc)
-    mask = sym2mask(sym)
-    newlocale_c(mask, cloc, base)
-end
+Return a pointer to an opaque locale-object of glibc.
+Modifies and invalidate the previously returned `base`.
+`categories` may be on or a tuple of symbols `:CTYPE, :NUMERIC, :TIME, :COLLATE, :MONETARY,
+:MESSAGES, :ALL, :PAPER, :NAME, :ADDRESS, :TELEPHONE, :MEASUREMENT, :IDENTIFICATION`.
+The locale id is converted to a string of a locale name in POSIX-form.
+This name must exist in the output of `locale -a` on a system using glibc.
+If no such object exists, return `Ptr{Void}(0)`.
+"""
+newlocale(loc::LocaleId, syms::Symbol...) = newlocale(loc, CL0, syms...)
 
-function newlocale(syms::NTuple{N,Symbol}, loc::LocaleId, base::CLocaleType) where N
+function newlocale(loc::LocaleId, base::CLocaleType, syms::Symbol...)
     cloc = loc_to_cloc(loc)
     mask = sym2mask(syms...)
     newlocale_c(mask, cloc, base)
 end
 
+"""
+    current_locale()
+
+Return the task-specific current glibc-locale.
+Any call to `set_locale!` or `newlocale` invalidates the returned pointer.
+"""
+function current_clocale()
+    locale().cloc
+end
+
+"""
+    strcoll(a::AbstractString, b::AbstractString[, loc::LocaleId]) -> -1, 0, 1
+
+Compare two strings a and b using the locale specified by `loc` or the default-locale
+for category `:MESSAGES`.
+Return `a < b ? -1 : a > b ? 1 : 0`.
+"""
 strcoll(a::AbstractString, b::AbstractString) = strcoll_c(a, b, current_clocale())
 function strcoll(a::AbstractString, b::AbstractString, loc::LocaleId)
     ploc = newlocale(LC_COLLATE_MASK, loc)
@@ -37,30 +58,39 @@ function strcoll(a::AbstractString, b::AbstractString, loc::LocaleId)
     error("no posix locale found for $loc")
 end
 
-nl_langinfo(nlitem::Cint) = nl_langinfo(nlitem, current_clocale())
-function nl_langinfo(nlitem::Cint, ploc::CLocaleType)
-    res = nl_langinfo_c(nlitem, ploc::CLocaleType)
-    unsafe_string(res)
-end
-
-include("libc.jl")
-
-function current_clocale()
-    current_locales().cloc
-end
 
 fixmask(mask::Int) = Cint(mask & LC_ALL_MASK == 0 ? mask : LC_ALL_MASK)
 
 nl_item(cat::Integer, offset::Integer) = Cint(cat)<<16 + Cint(offset) & 0xffff
+nl_item(cat::Symbol, offset::Integer) = nl_item(LC_NUMBER[cat], offset)
 
-function nl_langinfo(category::Integer, offset::Integer, loc::CLocaleType)
-    res = nl_langinfo_call(nl_item(category, offset), loc)
+lc_mask(cat::Int) = 1 << cat
+
+"""
+    nl_langinfo(cat::Union{Integer,Symbol}, offset::Integer[, loc::CLocaleType] )
+        -> string value | integer value
+
+Provide information about the locale as stored in the glibc implementation.
+"""
+function nl_langinfo(category::Union{Integer,Symbol}, offset::Integer, loc::CLocaleType)
+    res = nl_langinfo_c(nl_item(category, offset), loc)
     res == Ptr{UInt8}(0) ? "" : unsafe_string(res)
 end
+"""
+    clocale_name(category[, cloc::CLocaleType])
 
-nl_langinfo(category::Integer, loc::CLocaleType) = nl_langinfo(category, -1, loc)
+Return the name string of a clocale or current clocale. 
+"""
+clocale_name(category::Union{Integer,Symbol}, loc::CLocaleType) = nl_langinfo(category, -1, loc)
+clocale_name(category::Union{Integer,Symbol}) = nl_langinfo(category, -1, current_clocale())
 
+"""
+    sym2mask(s::Symbol...)
 
+Convert a category symbol or a list of symbols to a category mask.
+If one of the symbols is `:ALL`, return `LC_ALL_MASK`.
+Invalid symbols are silently ignored.
+"""
 function sym2mask(syms::Symbol...)
     mask = 0
     for s in syms
@@ -70,6 +100,8 @@ function sym2mask(syms::Symbol...)
     mask = mask & LC_ALL_MASK == 0 ? mask : LC_ALL_MASK
     mask
 end
+
+include("libc.jl")
 
 ## Interface constants 
 const LC_CTYPE = 0
@@ -207,8 +239,6 @@ const IDENTIFICATION_DATE = nl_item(LC_IDENTIFICATION, 13)
 const IDENTIFICATION_CATEGORY = nl_item(LC_IDENTIFICATION, 14)
 const IDENTIFICATION_CODESET = nl_item(LC_IDENTIFICATION, 15)
 const NUM_LC_IDENTIFICATION = 16 
-
-lc_mask(cat::Int) = 1 << cat
 
 const LC_NUMBER = Dict(
       :CTYPE => (LC_CTYPE),
