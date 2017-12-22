@@ -4,13 +4,13 @@
 using ResourceBundles.CLocales
 import .CLocales: newlocale_c, strcoll_c, nl_langinfo_c, LC_ALL_MASK
 
-const P0 = Ptr{Void}(0)
+const P0 = Ptr{Nothing}(0)
 
 @test newlocale_c(LC_ALL_MASK, "invalidxxx", P0)  == P0
 @test newlocale_c(LC_ALL_MASK, "th_TH", P0)  != P0
 
-test_locale_C = newlocale_c(LC_ALL_MASK, "C", Ptr{Void}(0))
-test_locale_fr = newlocale_c(LC_ALL_MASK, "fr_FR.utf8", Ptr{Void}(0))
+test_locale_C = newlocale_c(LC_ALL_MASK, "C", Ptr{Nothing}(0))
+test_locale_fr = newlocale_c(LC_ALL_MASK, "fr_FR.utf8", Ptr{Nothing}(0))
 @test duplocale(test_locale_fr) != P0
 
 COLL_TESTS_C = [

@@ -27,8 +27,11 @@ function cloc_to_loc(cloc::String)
     if cloc == "C" || uppercase(cloc) == "POSIX"
         return "C"
     end
-    m = match(REG_POSIX, lowercase(cloc))
-    m != nothing || return cloc
+    cloc = lowercase(cloc)
+    m = match(REG_POSIX, cloc)
+    if m == nothing
+        return cloc
+    end
     mc = m.captures
     lang = mc[1]
     reg = nostring(mc[3])
@@ -61,7 +64,7 @@ function cloc_to_loc(cloc::String)
 end
 
 nostring(s::AbstractString) = s
-nostring(::Void) = ""
+nostring(::Nothing) = ""
 
 const REG_POSIX = r"(^[[:alpha:]]+)([_-]([[:alpha:]]+))?(\.([[:alnum:]]+))?(@([[:alnum:]]+))?$"
 
@@ -96,7 +99,7 @@ function loc_to_cloc(loc::LocaleId)
     reg = loc.region
     script = loc.script
     # only interested in extensions of the form "-x-posix-<ext>"
-    extd = get(loc.extensions, 'x', Symbol[])
+    extd = loc.extensions === nothing ? Symbol[] : get(loc.extensions, 'x', Symbol[])
     ext = length(extd) == 2 && extd[1] == :posix ? extd[2] : S0 
     
     pext = get(LANG_TO_EXT, string(lang), "")

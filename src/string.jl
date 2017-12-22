@@ -79,7 +79,7 @@ function _string2ex1(p::AbstractString)
         if ! ( a isa String )
             if !multi && a isa Expr && a.head == :call && a.args[1] == SPRIME
                 multi = true
-                unshift!(ea, a.args[2]) # this argument goes to index 1
+                pushfirst!(ea, a.args[2]) # this argument goes to index 1
                 args[j] = 1
                 for k = 1:j-1
                     if args[k] isa Int  # previous arguments shift index

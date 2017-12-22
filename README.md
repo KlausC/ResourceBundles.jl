@@ -7,7 +7,7 @@
 Main features:
 
 * Locale
-  * create Locale from string formed according to standards (BCP47 (tags for Identifying languages), RFC5646, RFC4647)
+  * create Locale from string formed according to standards Unicode Locale Identifier (BCP47 (tags for Identifying languages), RFC5646, RFC4647)
   * set/get default locale for different purposes
   * startup-locale derived form environment settings (LANG, LC_MESSAGES, ..., LC_ALL)
   * Locale patterns imply a canonical partial ordering by set inclusion
@@ -115,22 +115,28 @@ ein Zeilenpaar
 
 #### Implementation
 
-##### Locales
+##### Locale Identifiers and Locales
 
-Locales are converted from Strings, which are formatted according to BCP47.
-Examples: "en", "en-Latn", "en-us", "en-Latn-GB-london", "en_US-x-private".
+Locale Identifiers are converted from Strings, which are formatted according to Unicode Locale Identifier.
+Examples: "en", "en_Latn", "en_us", "en_Latn_GB_london", "en_US_x_private".
 Additionally the syntax for Posix environment variables `LANG` and `LC_...` are
 supported.
 Examples: "C", "en_US", "en_us.utf8", "en_US@posext".
 All those formats are converted to a canonical form and stored in objects of type `Locale`.
+The `_` may be replaced by `-` in input.
 
-`Locale` implements the `equals` and the `issubset` (`⊆`) relations. 
+`LocaleId` implements the `equals` and the `issubset` (`⊆`) relations. 
 Here `Locale("en_US") ⊆ Locale("en") ⊆ Locale("C") === Locale("")`.
 
-There is a set of task-local variables, which are used as "current locale" for different purposes.
+The `Locale` is a set of locale-properties for several categories. The categories are taken
+from the GNU implementation. Each locale-property is identified by a `LocaleId`.
+
+Each task owns a task specific current locale.
 These variables are accessed with get/set methods.
 For example the locale `get_locale(:MESSAGES)` is used as the default locale for message
 text look-up in the current task.
+
+All locale categories except for :MESSAGES are implemented by the GNU implementation, which contains the shared library glibc, the tool, a set of predefined locale properties, and a tool `locales`, which delivers a list of all installed locale identifiers.
 
 ##### Resource Bundles
 

@@ -16,14 +16,14 @@ bundle4 = ResourceBundle(Test, "XXX")
 @test_throws ArgumentError ResourceBundle(Main, "d_n_e")
 
 const results = Dict(
-    (LocaleId(""), "T0") => "T0",
-    (LocaleId(""), "T1") => "T1 - empty",
-    (LocaleId(""), "T2") => "T2 - empty",
-    (LocaleId(""), "T3") => "T3 - empty",
-    (LocaleId(""), "T4") => "T4 - empty",
-    (LocaleId(""), "T5") => "T5 - empty",
-    (LocaleId(""), "T6") => "T6",
-    (LocaleId(""), "T7") => "T7",
+    (LocaleId("C"), "T0") => "T0",
+    (LocaleId("C"), "T1") => "T1 - empty",
+    (LocaleId("C"), "T2") => "T2 - empty",
+    (LocaleId("C"), "T3") => "T3 - empty",
+    (LocaleId("C"), "T4") => "T4 - empty",
+    (LocaleId("C"), "T5") => "T5 - empty",
+    (LocaleId("C"), "T6") => "T6",
+    (LocaleId("C"), "T7") => "T7",
 
     (LocaleId("en"), "T0") => "T0",
     (LocaleId("en"), "T1") => "T1 - empty",
@@ -71,12 +71,12 @@ const results = Dict(
     (LocaleId("en-x-1"), "T7") => "T7",
 )
 
-locs = LocaleId.(("", "en", "en-US", "en-Latn", "en-Latn-US", "en-x-1"))
+locs = LocaleId.(("C", "en", "en-US", "en-Latn", "en-Latn-US", "en-x-1"))
 keya = ((x->"T" * string(x)).(0:7))
 
 log = Test.TestLogger(min_level=Logging.Warn)
 
-locm = locale(:MESSAGES)
+locm = locale_id(:MESSAGES)
 
 @testset "message lookup for locale $loc and key $key" for loc in locs, key in keya
     res = results[loc, key]
@@ -110,7 +110,7 @@ with_logger(log) do
     @test test_log(log, "Wrong type 'String'")
 
     @test keys(bundle, LocaleId("de-us-america-x-1")) == ["T1", "T2", "T3", "T4", "T5"]
-    @test test_log(log, "Wrong type 'Void'")
+    @test test_log(log, "Wrong type 'Nothing'")
 
     @test keys(bundle3, LocaleId("")) == String[]
     @test keys(bundle) == ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "hello"]
@@ -160,7 +160,7 @@ eval(ResourceBundles, :(module XXX
 
 lpa = ResourceBundles.locale_pattern
 
-@test lpa(".jl") == LocaleId("")
+@test lpa(".jl") == LocaleId("C")
 @test lpa("-en.jl") == LocaleId("en")
 @test lpa("_en.jl") == LocaleId("en")
 @test lpa("/en.jl") == LocaleId("en")

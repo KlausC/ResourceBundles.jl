@@ -11,7 +11,7 @@ struct LocaleId
     script::Symbol
     region::Symbol
     variants::Vector{Symbol}
-    extensions::Dict{Char,Vector{Symbol}}
+    extensions::Union{Dict{Char,Vector{Symbol}},Nothing}
 end
 
 """
@@ -24,14 +24,14 @@ It is maintained by the libc functions `newlocale` / `freelocale`.
 """
 mutable struct Locale
     dict::Dict{Symbol,LocaleId}
-    cloc::Ptr{Void}
-    Locale(ptr::Ptr{Void}) = new(all_default_categories(), ptr)
+    cloc::Ptr{Nothing}
+    Locale(ptr::Ptr{Nothing}) = new(all_default_categories(), ptr)
 end
 
 ### unexported types
 
-const CLocaleType = Ptr{Void}
+const CLocaleType = Ptr{Nothing}
 const AS = AbstractString
 const VariantVector = Vector{Symbol}
 const ExtensionDict = Dict{Char,VariantVector}
-const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, ExtensionDict}
+const Key = Tuple{Symbol, Symbol, Symbol, VariantVector, Union{ExtensionDict,Nothing}}

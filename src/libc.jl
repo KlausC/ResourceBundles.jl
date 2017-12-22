@@ -11,7 +11,7 @@ function duplocale(ploc::CLocaleType)
 end
 
 function freelocale(ploc::CLocaleType)
-    ccall(:freelocale, Void, (CLocaleType,), ploc)
+    ccall(:freelocale, Nothing, (CLocaleType,), ploc)
 end
 
 function strcoll_c(s1::AbstractString, s2::AbstractString, ploc::CLocaleType)

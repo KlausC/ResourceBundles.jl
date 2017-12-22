@@ -2,7 +2,7 @@
 using .Constants
 using .LocaleIdTranslations
 
-export LocaleId, Locales, default_locale, locale, set_locale!
+export LocaleId, Locales, default_locale, locale_id, locale, set_locale!
 
 import Base: ==, hash
 
@@ -13,30 +13,30 @@ import Base: ==, hash
     LocaleId(lang, region)
     LocaleId(lang, script, region)
     LocaleId(lang, script, region, variant)
-    LocaleId("") -> ROOT
+    LocaleId("") -> DEFAULT
     LocaleId() -> BOTTOM
 
 Return `LocaleId` object from cache or create new one and register in cache.
 """
 LocaleId() = BOTTOM
-LocaleId(langtag::AS) = langtag == "" ? ROOT : create_locid(splitlangtag(langtag)...)
-LocaleId(lang::AS, region::AS) = create_locid(lang, EMPTYV, "", region, EMPTYV, EMPTYD)
-LocaleId(lang::AS, script::AS, region::AS) = create_locid(lang, EMPTYV, script, region, EMPTYV, EMPTYD)
-LocaleId(lang::AS, script::AS, region::AS, variant::AS) = create_locid(lang, EMPTYV, script, region, [variant], EMPTYD)
+LocaleId(langtag::AS) = langtag == "" ? DEFAULT : create_locid(splitlangtag(langtag)...)
+LocaleId(lang::AS, region::AS) = create_locid(lang, EMPTYV, "", region, EMPTYV, nothing)
+LocaleId(lang::AS, script::AS, region::AS) = create_locid(lang, EMPTYV, script, region, EMPTYV, nothing)
+LocaleId(lang::AS, script::AS, region::AS, variant::AS) = create_locid(lang, EMPTYV, script, region, [variant], nothing)
 
 
 # utilities
 
 
 # create instance and register in global cache.
-function create_locid(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::ExtensionDict)
+function create_locid(language::AS, extlang::Vector{String}, script::AS, region::AS, variant::Vector{String}, extension::Union{ExtensionDict,Nothing})
 
     lang = check_language(language, extlang)
     scri = check_script(titlecase(script))
     regi = check_region(uppercase(region))
     vari = check_variant(variant)
     if lang == S0
-        lex = length(extension)
+        lex = extension == nothing ? 0 : length(extension)
         if !(scri == S0 && regi == S0 && length(vari) == 0 &&
              (lex == 1 && first(keys(extension)) == 'x' || lex == 0 ) )
             throw(ArgumentError("missing language prefix"))
@@ -57,7 +57,7 @@ function check_language(x::AS, extlang::Vector{String})
     x = get(OLD_TO_NEW_LANG, x, x)
     len = length(extlang)
     if length(x) <= 3
-        len <= 1 || throw(ArgumentError("only one language extension allowed '$x-$(join(extlang, '-'))'")) 
+        len <= 1 || throw(ArgumentError("only one language extension allowed '$x$SEP2$(join(extlang, SEP2))'")) 
         if length(extlang) >= 1
             x = extlang[1]
         end
@@ -65,14 +65,14 @@ function check_language(x::AS, extlang::Vector{String})
             x = LANGUAGE3_DICT[x] # replace 3-char code by preferred 2-char code
         end
     else
-        len == 0 || throw(ArgumentError("no language exensions allowed '$x-$(join(extlang, '-'))'"))
+        len == 0 || throw(ArgumentError("no language exensions allowed '$x$SEP2$(join(extlang, SEP2))'"))
     end
     Symbol(x)
 end
 
 function is_language(x::AS)
     len = length(x)
-    (2 <= len <= 8 && is_alpha(x)) || len == 1 && uppercase(x) == "C"
+    (2 <= len <= 8 && is_alpha(x)) || len == 1 && x == "C"
 end
 
 function is_langext(x::AS)
@@ -101,7 +101,7 @@ function is_region(x::AS)
 end
 
 function check_variant(x::Vector{String})
-    all(is_variant, x) || throw(ArgumentError("no variants '$(join(x, '-'))'")) 
+    all(is_variant, x) || throw(ArgumentError("no variants '$(join(x, SEP2))'")) 
     Symbol.(x)
 end
 
@@ -121,7 +121,7 @@ Parse language tag and convert to Symbols and collections of Symbols.
 function splitlangtag(x::AS)
     is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
     x = cloc_to_loc(x) # handle and replace '.' and '@'.
-    x = replace(lowercase(x), SEP, SEP2) # normalize input
+    x = replace(x, SEP, SEP2) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
     token = split(x, SEP2, keep=true)
     lang = ""
@@ -129,7 +129,7 @@ function splitlangtag(x::AS)
     scri = ""
     regi = ""
     vari = String[]
-    exte = ExtensionDict()
+    exte = nothing
     langlen = 0
     k = 1
     n = length(token)
@@ -156,7 +156,12 @@ function splitlangtag(x::AS)
     end
     while k <= n && is_single(token[k])
         sing = token[k][1]
-        haskey(exte, sing) && throw(ArgumentError("multiple occurrence of singleton '$sing'"))
+        if exte == nothing
+            exte = ExtensionDict()
+        end
+        if haskey(exte, sing)
+            throw(ArgumentError("multiple occurrence of singleton '$sing'"))
+        end
         m = sing == 'x' ? 1 : 2
         k += 1
         ext = Symbol[]
@@ -207,11 +212,13 @@ issublang(x::Symbol, y::Symbol) = startswith(string(x), string(y))
 issubscript(x::Symbol, y::Symbol) = startswith(string(x), string(y))
 issubregion(x::Symbol, y::Symbol) = startswith(string(x), string(y))
 issubvar(x::Vector{Symbol}, y::Vector{Symbol}) = issubset(y, x)
-function issubext(x::Dict{Char,Vector{Symbol}}, y::Dict{Char,Vector{Symbol}})
+function issubext(x::ExtensionDict, y::ExtensionDict)
     ky = keys(y)
     issubset(ky, keys(x)) &&
     all(k-> issubset(y[k], x[k]), ky)
 end
+issubext(x::Nothing, y::ExtensionDict) = false
+issubext(x, y::Nothing) = true
 
 Base.isless(x::LocaleId, y::LocaleId) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
 islexless(x::LocaleId, y::LocaleId) = string(x) < string(y)
@@ -227,16 +234,15 @@ function Base.show(io2::IO, x::LocaleId)
         v != ES && ( print(io, sep, v); sep = SEP2 )
     end
     ltx(a::Char, b::Char) = ( a != 'x' && a < b ) || b == 'x'
-    for k in sort(collect(keys(x.extensions)), lt=ltx)
-        print(io, sep, k); sep = SEP2
-        for v in x.extensions[k]
-            print(io, sep, v)
+    if x.extensions != nothing
+        for k in sort(collect(keys(x.extensions)), lt=ltx)
+            print(io, sep, k); sep = SEP2
+            for v in x.extensions[k]
+                print(io, sep, v)
+            end
         end
     end
     out = String(take!(io))
-    if out == "c"
-        out = "C"
-    end
     print(io2, out)
 end
 
@@ -246,16 +252,16 @@ const CACHE_LOCK = Threads.RecursiveSpinLock()
 
 """
 
-    locale(category)
+    locale_id([gloc::Locale, ]category)
 
-Determine current locale as stored in global variable.
+Determine current locale id for given category as stored in locale variable.
+If gloc is not given, use task specific locale variable.
 Throw exception, if no valid category name.
 Valid categories are
 :CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
 """
-function locale(category::Symbol)
-    locale().dict[category]
-end
+locale_id(category::Symbol) = locale().dict[category]
+locale_id(gloc::Locale, category::Symbol) = gloc.dict[category]
 
 """
 
@@ -274,10 +280,10 @@ function set_locale!(gloc::Locale, loc::LocaleId, cats::Symbol...)
     cats ⊆ valid || :ALL in cats || error("unsupported categories in $cats")
     cat2 = :ALL in cats || isempty(cats) ? valid : cats
     for cat in cat2
-        cld[cat] = loc == LocaleId() ? default_locale(cat) : loc
+        cld[cat] = loc == DEFAULT ? default_locale(cat) : loc
     end
     gloc.cloc = CLocales.newlocale(loc, gloc.cloc, cats...)
-    loc
+    nothing
 end
 
 """
@@ -297,23 +303,27 @@ MONETARY    format of monetary values
 TIME        date/time formats
 """
 function default_locale(category::Union{Symbol,AbstractString})
-    LocaleId(posix_locale(string(category)))
+    LocaleId(localeid_from_env(string(category)))
 end
 
 """
 
-    posix_locale(category)
+    localeid_from_env(category)
 
 Read posix environment variable for category.
 """
-function posix_locale(category::String)
+function localeid_from_env(category)
     s = uppercase(string(category))
-    if ! startswith(s, "LC_")
+    if !startswith(s, "LC_")
         s = s == "LANG" ? s : "LC_" * s
     end
-    get2("LC_ALL") do
-        get2(s) do
-            get(ENV, "LANG", "")
+    if s == "LC_ALL"
+        get(ENV, s, "")
+    else
+        get2("LC_ALL") do
+            get2(s) do
+                get(ENV, "LANG", "C")
+            end
         end
     end
 end
@@ -324,8 +334,13 @@ function get2(f::Function, k::Any)
     v == "" ? f() : v
 end
 
+"""
+    Locale()
+
+Create and initialize a new `Locale` object.
+"""
 function Locale()
-    gloc = Locale(Ptr{Void}(0))
+    gloc = Locale(Ptr{Nothing}(0))
     for cat in ALL_CATEGORIES
         set_locale!(gloc, default_locale(cat), cat)
     end
@@ -333,9 +348,15 @@ function Locale()
 end
 
 function all_default_categories()
-    Dict{Symbol,LocaleId}([x => ROOT for x in ALL_CATEGORIES])
+    Dict{Symbol,LocaleId}([x => DEFAULT for x in ALL_CATEGORIES])
 end
 
+"""
+    locale()
+
+Return task specific locale object.
+Create and initialize from environment at first access within a task.
+"""
 function locale()
     tld = task_local_storage()
     if !haskey(tld, :CURRENT_LOCALES)
@@ -347,9 +368,10 @@ function locale()
     end
 end
 
+# finalizer required to free the associated clib object.
 function finalize_gloc(gloc::Locale)
     empty!(gloc.dict)
-    if gloc.cloc != Ptr{Void}(0)
+    if gloc.cloc != Ptr{Nothing}(0)
         CLocales.freelocale(gloc.cloc)
     end
 end
@@ -357,15 +379,25 @@ end
 
 """
 
+    DEFAULT
+
+Useful constant for the default locale identifier. It is used to indicate,
+that the actual value for concrete locale category (different form :ALL) has to
+be determined from the global environment variables `LC_...` and `LANG`.
+"""
+const DEFAULT = LocaleId("", "")
+"""
+
     ROOT
 
 Useful constant for the root locale.  The root locale is the locale whose
-language, country, and variant are empty ("") strings.  This is regarded
+language is "C", country, and variant are empty ("") strings.  This is regarded
 as the base locale of all locales, and is used as the language/country
 neutral locale for the locale sensitive operations. 
 """
-const ROOT = LocaleId("", "")
-const BOTTOM = LocaleId(:Bot, S0, S0, EMPTY_VECTOR, EMPTYD) 
+const ROOT = LocaleId("C", "")
+
+const BOTTOM = LocaleId(:Bot, S0, S0, EMPTY_VECTOR, nothing) 
 
 """
     Provide a set of commonly used LocaleId with language- and country names
@@ -373,8 +405,9 @@ const BOTTOM = LocaleId(:Bot, S0, S0, EMPTY_VECTOR, EMPTYD)
 """
 module Locales
 
-    import ResourceBundles: LocaleId
+    import ResourceBundles: LocaleId, ROOT, DEFAULT, BOTTOM
 
+    export ROOT, DEFAULT, BOTTOM
     export ENGLISH, FRENCH, GERMAN, ITALIAN, JAPANESE, KOREAN, CHINESE,
         SIMPLIFIED_CHINESE, TRADITIONAL_CHINESE
     export FRANCE, GERMANY, ITALY, JAPAN, KOREA, CHINA, TAIWAN, PRC, UK, US, CANADA

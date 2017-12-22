@@ -20,7 +20,7 @@ Modifies and invalidate the previously returned `base`.
 :MESSAGES, :ALL, :PAPER, :NAME, :ADDRESS, :TELEPHONE, :MEASUREMENT, :IDENTIFICATION`.
 The locale id is converted to a string of a locale name in POSIX-form.
 This name must exist in the output of `locale -a` on a system using glibc.
-If no such object exists, return `Ptr{Void}(0)`.
+If no such object exists, return `Ptr{Nothing}(0)`.
 """
 newlocale(loc::LocaleId, syms::Symbol...) = newlocale(loc, CL0, syms...)
 

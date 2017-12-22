@@ -39,8 +39,8 @@ end
 
 const Empty = ResourceBundle("", "empty")
 
-const SEP = '_'
-const SEP2 = '-'
+const SEP = '-'
+const SEP2 = '_'
 const JEND = ".jl"          # extension of Julia resource file
 const PEND = ".po"          # extension of PO resource file
 const MEND = ".mo"          # extension of MO resource file
@@ -183,7 +183,7 @@ function locale_pattern(f::AbstractString)
     f = replace(f, Filesystem.path_separator, SEP)
     f = replace(f, SEP2, SEP)
     if isempty(f)
-        LocaleId("")
+        LocaleId("C")
     elseif f[1] == SEP
         LocaleId(f[nextind(f, 1):end])
     else
@@ -305,7 +305,7 @@ function get_resource_by_key(bundle::ResourceBundle, loc::LocaleId, key::Abstrac
 end
 
 # variants using default locale for messages
-msg_loc() = locale(:MESSAGES)
+msg_loc() = locale_id(:MESSAGES)
 get(bundle::ResourceBundle, key::String, default=nothing) = get(bundle, msg_loc(), key, default)
 get_resource_by_key(bundle::ResourceBundle, key::String) =  get_resource_by_key(bundle, msg_loc(), key)
 

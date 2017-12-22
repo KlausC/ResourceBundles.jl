@@ -1,32 +1,36 @@
 using .Locales
 
 # Construct LocaleId from language tags
-@test LocaleId("") === ROOT
+@test LocaleId("") === DEFAULT
+@test LocaleId("C") === ROOT
 @test LocaleId("en") === ENGLISH
 @test LocaleId("en-US") === US
+@test_throws ArgumentError("missing language prefix") LocaleId("c")
 @test string(LocaleId("de")) == "de"
-@test string(LocaleId("de_latn")) == "de-Latn"
-@test string(LocaleId("de-de")) == "de-DE"
-@test string(LocaleId("de-111")) == "de-111"
-@test string(LocaleId("de-variAnt1")) == "de-variant1"
-@test string(LocaleId("de-variAnt1-varia2")) == "de-variant1-varia2"
-@test string(LocaleId("de-1erw-varia2")) == "de-1erw-varia2"
-@test string(LocaleId("de-a_aB")) == "de-a-ab"
-@test string(LocaleId("DE_X_1_UZ_A_B")) == "de-x-1-uz-a-b"
-@test string(LocaleId("DE_latn_de")) == "de-Latn-DE"
-@test string(LocaleId("DE_latn_de-variant1")) == "de-Latn-DE-variant1"
-@test string(LocaleId("DE_latn_de-a-uu-11")) == "de-Latn-DE-a-uu-11"
-@test string(LocaleId("DE_latn_de-varia-a-uu-11")) == "de-Latn-DE-varia-a-uu-11"
-@test string(LocaleId("DE_latn_de-varia-a-uu-11")) == "de-Latn-DE-varia-a-uu-11"
-@test string(LocaleId("DE_latn_de-1var-a-uu-11")) == "de-Latn-DE-1var-a-uu-11"
-@test string(LocaleId("DE_latn_de-1va2-a-uu-11")) == "de-Latn-DE-1va2-a-uu-11"
-@test string(LocaleId("DE_latn_de-x-11-a-uu-11")) == "de-Latn-DE-x-11-a-uu-11"
-@test string(LocaleId("DE_latn_de-b-22-a-uu-11")) == "de-Latn-DE-a-uu-11-b-22"
-@test string(LocaleId("DE_latn_de-z-22-a-uu-11")) == "de-Latn-DE-a-uu-11-z-22"
+@test string(LocaleId("de_latn")) == "de_Latn"
+@test string(LocaleId("de-de")) == "de_DE"
+@test string(LocaleId("de-111")) == "de_111"
+@test string(LocaleId("de-variAnt1")) == "de_variant1"
+@test string(LocaleId("de-variAnt1_varia2")) == "de_variant1_varia2"
+@test string(LocaleId("de-1erw-varia2")) == "de_1erw_varia2"
+@test string(LocaleId("de-a_aB")) == "de_a_ab"
+@test string(LocaleId("DE_X_1_UZ_A_B")) == "de_x_1_uz_a_b"
+@test string(LocaleId("DE_latn_de")) == "de_Latn_DE"
+@test string(LocaleId("DE_latn_de-variant1")) == "de_Latn_DE_variant1"
+@test string(LocaleId("DE_latn_de_a-uu-11")) == "de_Latn_DE_a_uu_11"
+@test string(LocaleId("DE_latn_de-varia-a-uu-11")) == "de_Latn_DE_varia_a_uu_11"
+@test string(LocaleId("DE_latn_de-varia-a-uu-11")) == "de_Latn_DE_varia_a_uu_11"
+@test string(LocaleId("DE_latn_de-1var-a-uu-11")) == "de_Latn_DE_1var_a_uu_11"
+@test string(LocaleId("DE_latn_de-1va2-a-uu-11")) == "de_Latn_DE_1va2_a_uu_11"
+@test string(LocaleId("DE_latn_de-x-11-a-uu-11")) == "de_Latn_DE_x_11_a_uu_11"
+@test string(LocaleId("DE_latn_de-b-22-a-uu-11")) == "de_Latn_DE_a_uu_11_b_22"
+@test string(LocaleId("DE_latn_de-z-22-a-uu-11")) == "de_Latn_DE_a_uu_11_z_22"
 
 @test string(LocaleId("zh-han")) == "han"
 @test string(LocaleId("deu")) == "de"
 
+@test LocaleId("en") ⊆ LocaleId("C")
+@test BOTTOM ⊆ LocaleId("en-Latn-ab-valencia-a-bc-x-1-2")
 @test LocaleId("en-a-aa-b-bb") ⊆ LocaleId("en-b-bb")
 @test hash(LocaleId("is-a-aa-b-bb")) == hash(LocaleId("is-b-bb-a-aa"))
 @test LocaleId("is-a-aa-b-bb") === LocaleId("is-b-bb-a-aa")
@@ -36,26 +40,27 @@ using .Locales
 create2(l="", lex=String[], s="", r="", v=String[], d=Dict{Char,Vector{Symbol}}()) =
     create_locid(l, lex, s, r, v, d)
 
-@test_throws ArgumentError#=("missing language prefix")=# LocaleId("a-ab")
-@test_throws ArgumentError#=("no language prefix 'a'")=# LocaleId("a", "")
-@test_throws ArgumentError#=("only one language extension allowed 'de-abc-def'")=# LocaleId("de-abc-def")
-@test_throws ArgumentError#=("no language exensions allowed 'abcd-def'")=# create2("abcd", ["def"])
-@test_throws ArgumentError#=("no script 'Abc'")=# LocaleId("ab", "abc", "de")
-@test_throws ArgumentError#=("no region 'DEF'")=# LocaleId("ab", "abcd", "def")
-@test_throws ArgumentError#=("no variants 'vari'")=# create2("ab", String[], "", "", ["vari"])
-@test_throws ArgumentError#=("no variants '1va'")=# create2("ab", String[], "", "", ["1va"])
-@test_throws ArgumentError#=("no variants 'asdfghjkl'")=# create2("ab", String[], "", "", ["asdfghjkl"])
-@test_throws ArgumentError#=("no variants '1990-asdfghjkl'")=# create2("ab", String[], "", "", ["1990", "asdfghjkl"])
-@test_throws ArgumentError#=("language tag contains invalid characters: 'Ä'")=# LocaleId("Ä")
-@test_throws ArgumentError#=("multiple occurrence of singleton 'u'")=# LocaleId("en-u-u1-u-u2")
-@test_throws ArgumentError#=("no language tag: 'en-asdfghjkl' after 1")=# LocaleId("en-asdfghjkl")
-@test_throws ArgumentError#=("no language tag: 'asdfghjkl' after 0")=# LocaleId("asdfghjkl")
-@test_throws ArgumentError#=("no language tag: 'x-asdfghjkl' after 1")=# LocaleId("x-asdfghjkl")
-@test_throws ArgumentError#=("too many language extensions 'en-abc-def-ghi-jkl'")=# LocaleId("en-abc-def-ghi-jkl")
+@test_throws ArgumentError("missing language prefix") LocaleId("a-ab")
+@test_throws ArgumentError("no language prefix 'a'") LocaleId("a", "")
+@test_throws ArgumentError("only one language extension allowed 'de_abc_def'") LocaleId("de-abc-def")
+@test_throws ArgumentError("no language exensions allowed 'abcd_def'") create2("abcd", ["def"])
+@test_throws ArgumentError("no script 'Abc'") LocaleId("ab", "abc", "de")
+@test_throws ArgumentError("no region 'DEF'") LocaleId("ab", "abcd", "def")
+@test_throws ArgumentError("no variants 'vari'") create2("ab", String[], "", "", ["vari"])
+@test_throws ArgumentError("no variants '1va'") create2("ab", String[], "", "", ["1va"])
+@test_throws ArgumentError("no variants 'asdfghjkl'") create2("ab", String[], "", "", ["asdfghjkl"])
+@test_throws ArgumentError("no variants '1990_asdfghjkl'") create2("ab", String[], "", "", ["1990", "asdfghjkl"])
+@test_throws ArgumentError("language tag contains invalid characters: 'Ä'") LocaleId("Ä")
+@test_throws ArgumentError("multiple occurrence of singleton 'u'") LocaleId("en-u-u1-u-u2")
+@test_throws ArgumentError("no language tag: 'en_asdfghjkl' after 1") LocaleId("en_asdfghjkl")
+@test_throws ArgumentError("no language tag: 'asdfghjkl' after 0") LocaleId("asdfghjkl")
+@test_throws ArgumentError("no language tag: 'x_asdfghjkl' after 1") LocaleId("x-asdfghjkl")
+@test_throws ArgumentError("too many language extensions 'en_abc_def_ghi_jkl'") LocaleId("en-abc-def-ghi-jkl")
 
 #various constructors
+@test LocaleId("") === DEFAULT
+@test LocaleId("C") === ROOT
 @test LocaleId() === BOTTOM
-@test LocaleId("") === ROOT
 @test LocaleId("de", "de") == LocaleId("de-de")
 @test LocaleId("de", "latn", "de") == LocaleId("de-Latn-de")
 @test LocaleId("de", "latn", "de", "bavarian") == LocaleId("de-Latn-de-bavarian")
