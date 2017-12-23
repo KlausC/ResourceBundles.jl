@@ -180,8 +180,8 @@ function locale_pattern(f::AbstractString)
     end
     ( fext == JEND || fext == PEND || fext == MEND ) || return nothing
     f = isempty(f) ? d : joinpath(d, f)
-    f = replace(f, Filesystem.path_separator, SEP)
-    f = replace(f, SEP2, SEP)
+    f = replace(f, Filesystem.path_separator => SEP)
+    f = replace(f, SEP2 => SEP)
     if isempty(f)
         LocaleId("C")
     elseif f[1] == SEP
