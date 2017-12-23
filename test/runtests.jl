@@ -9,19 +9,20 @@ import ResourceBundles: set_locale!, load_file
 
 cd(Pkg.dir("ResourceBundles"))
 
-# test if logger contains text in a message
-function test_log(log::Test.TestLogger)
-    res = isempty(log.logs)
-    empty!(log.logs)
-    res
-end
+# test if logger contains text in a message; finally with:clear logger.
 function test_log(log::Test.TestLogger, text::AbstractString)
-    isempty(text) && return test_log(log)
-    conmess(x::Test.LogRecord) = contains(x.message, text)
-    res = any(conmess.(log.logs))
-    empty!(log.logs)
-    res
+    try
+        isempty(text) && return test_log(log)
+        conmess(x::Test.LogRecord) = contains(x.message, text)
+        any(conmess.(test_log_filter(log)))
+    finally
+        empty!(log.logs)
+    end
 end
+
+test_log(log::Test.TestLogger) = isempty(test_log_filter(log))
+# ignore messages from Core module
+test_log_filter(log::Test.TestLogger) = filter(lr->lr._module != Core, log.logs)
 
 @testset "locale" begin include("locale.jl") end
 @testset "resource_bundle" begin include("resource_bundle.jl") end

@@ -224,9 +224,9 @@ Outputs the evaluation of `Int(expr1)` and of `n::Int -> expr(n)`.
 function translate_plural_data(str::AbstractString)
     nplurals = 2
     plural = n -> n != 0
-    str = replace(str, ':', " : ") # surround : by blanks
-    str = replace(str, '?', " ? ") # surround ? by blanks
-    str = replace(str, "/", "÷") # use Julia integer division for / 
+    str = replace(str, ':' => " : ") # surround : by blanks
+    str = replace(str, '?' => " ? ") # surround ? by blanks
+    str = replace(str, "/" => "÷") # use Julia integer division for / 
     top = Meta.parse(str)
     isa(top, Expr) || return nplurals, plural
     for a in top.args

@@ -121,7 +121,7 @@ Parse language tag and convert to Symbols and collections of Symbols.
 function splitlangtag(x::AS)
     is_alnumsep(x) || throw(ArgumentError("language tag contains invalid characters: '$x'"))
     x = cloc_to_loc(x) # handle and replace '.' and '@'.
-    x = replace(x, SEP, SEP2) # normalize input
+    x = replace(x, SEP => SEP2) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
     token = split(x, SEP2, keep=true)
     lang = ""
@@ -282,7 +282,7 @@ function set_locale!(gloc::Locale, loc::LocaleId, cats::Symbol...)
     for cat in cat2
         cld[cat] = loc == DEFAULT ? default_locale(cat) : loc
     end
-    gloc.cloc = CLocales.newlocale(loc, gloc.cloc, cats...)
+    gloc.cloc = CLocales.newlocale(loc, gloc.cloc, cat2...)
     nothing
 end
 

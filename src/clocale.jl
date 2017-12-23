@@ -5,8 +5,8 @@ using ResourceBundles
 using ResourceBundles.LocaleIdTranslations
 import ResourceBundles: LocaleId, S0, locale, CLocaleType
 
-export current_locale, newlocale, duplocale, freelocale, nl_langinfo, clocale_name
-export nl_item
+export current_locale, newlocale, duplocale, freelocale, nl_langinfo, clocale_id
+export NlItem, category, offset, typ
 export strcoll, strxfrm, LC_NUMBER, LC_GLOBAL_LOCALE, LC_ALL_MASK
 export LC_CTYPE, LC_NUMERIC, LC_TIME, LC_COLLATE, LC_MONETARY, LC_MESSAGES, LC_ALL
 export LC_PAPER, LC_NAME, LC_ADDRESS, LC_TELEPHONE, LC_MEASUREMENT, LC_IDENTIFICATION
@@ -61,28 +61,58 @@ end
 
 fixmask(mask::Int) = Cint(mask & LC_ALL_MASK == 0 ? mask : LC_ALL_MASK)
 
-nl_item(cat::Integer, offset::Integer) = Cint(cat)<<16 + Cint(offset) & 0xffff
-nl_item(cat::Symbol, offset::Integer) = nl_item(LC_NUMBER[cat], offset)
+struct NlItem
+    mask::Cint
+end
+
+"""
+    nl_item(cat, offset, typ=0) -> NlItem(::Cint)
+
+Create an NlItem object, which wraps Cint mask.
+Result is:
+typ == 0: char*
+typ == 1: int of same size as pointer
+typ == 2: *uint8
+"""
+function nl_item(cat::Integer, offset::Integer, typ::Integer=0)
+    NlItem(Cint(cat&0x0fff)<<16 + Cint(offset) & 0xffff + Cint(typ)<<28)
+end
+nl_item(cat::Symbol, offset::Integer, typ::Integer=0) = nl_item(LC_NUMBER[cat], offset, typ)
+
+category(nli::NlItem) = Int((nli.mask>>16) & 0x0fff)
+offset(nli::NlItem) = Int(nli.mask & 0xffff)
+typ(nli::NlItem) = Int((nli.mask>>>28) & 0xffff)
+
+nl_cmask(cat::NlItem) = cat.mask & Cint(0x0ffffff)
+nl_ctype(cat::NlItem) = Int(cat.mask>>>28)
 
 lc_mask(cat::Int) = 1 << cat
 
 """
-    nl_langinfo(cat::Union{Integer,Symbol}, offset::Integer[, loc::CLocaleType] )
+    nl_langinfo(cat::NlItem[, loc::CLocaleType] )
         -> string value | integer value
 
 Provide information about the locale as stored in the glibc implementation.
 """
-function nl_langinfo(category::Union{Integer,Symbol}, offset::Integer, loc::CLocaleType)
-    res = nl_langinfo_c(nl_item(category, offset), loc)
-    res == Ptr{UInt8}(0) ? "" : unsafe_string(res)
+function nl_langinfo(cat::NlItem, loc::CLocaleType=current_clocale())
+    res = nl_langinfo_c(nl_cmask(cat), loc)
+    nl_convert(Val(nl_ctype(cat)), res)
 end
+
+const PTYPE = sizeof(Ptr) == 8 ? Int64 : Int32
+const PU0 = Ptr{UInt8}(0)
+
+nl_convert(::Val{0}, res::Ptr{UInt8}) = res === PU0 ? "" : unsafe_string(res)
+nl_convert(::Val{1}, res::Ptr{UInt8}) = Int(Base.bitcast(PTYPE, res))
+nl_convert(::Val{2}, res::Ptr{UInt8}) = res === PU0 ? 0 : Int(unsafe_wrap(Array, res, 1)[1])
+
 """
-    clocale_name(category[, cloc::CLocaleType])
+    clocale_id(category[, cloc::CLocaleType])
 
 Return the name string of a clocale or current clocale. 
 """
-clocale_name(category::Union{Integer,Symbol}, loc::CLocaleType) = nl_langinfo(category, -1, loc)
-clocale_name(category::Union{Integer,Symbol}) = nl_langinfo(category, -1, current_clocale())
+clocale_id(cat::Union{Integer,Symbol}, loc::CLocaleType) = nl_langinfo(nl_item(cat, -1), loc)
+clocale_id(cat::Union{Integer,Symbol}) = nl_langinfo(nl_item(cat, -1), current_clocale())
 
 """
     sym2mask(s::Symbol...)
@@ -103,7 +133,7 @@ end
 
 include("libc.jl")
 
-## Interface constants 
+## Interface constants derived from /usr/include/langinfo.h 
 const LC_CTYPE = 0
 const LC_NUMERIC = 1
 const LC_TIME = 2
@@ -121,8 +151,15 @@ const LC_IDENTIFICATION = 12
 NAME(cat::Int) = nl_item(cat, -1)
 NAME(s::Symbol) = NAME(LC_NUMBER[s])
 
-const CODESET = nl_item(LC_CTYPE, 14)
+const CTYPE_CODESET = nl_item(LC_CTYPE, 14)
 const NUM_LC_CTYPE = 86 
+
+const RADIXCHAR = nl_item(LC_NUMERIC, 0)
+const THOUSEP = nl_item(LC_NUMERIC, 1)
+const THOUSANDS_SEP = nl_item(LC_NUMERIC, 1)
+const GROUPING = nl_item(LC_NUMERIC, 2, 2)
+const NUMERIC_CODESET = nl_item(LC_NUMERIC, 5)
+const NUM_LC_NUMERIC = 6 
 
 ABDAY(i::Int) = nl_item(LC_TIME, i-1)
 DAY(i::Int) = nl_item(LC_TIME, i+6)
@@ -143,12 +180,8 @@ const ERA_T_FMT = nl_item(LC_TIME, 49)
 const TIME_CODESET = nl_item(LC_TIME, 110) 
 const NUM_LC_TIME = 111 
 
-const RADIXCHAR = nl_item(LC_NUMERIC, 0)
-const THOUSEP = nl_item(LC_NUMERIC, 1)
-const THOUSANDS_SEP = nl_item(LC_NUMERIC, 1)
-const GROUPING = nl_item(LC_NUMERIC, 2)
-const NUMERIC_CODESET = nl_item(LC_NUMERIC, 5)
-const NUM_LC_NUMERIC = 6 
+const COLLATE_CODESET = nl_item(LC_COLLATE, 18)
+const NUM_LC_COLLATE = 19
 
 const YESEXPR = nl_item(LC_MESSAGES, 0)
 const NOEXPR = nl_item(LC_MESSAGES, 1)
@@ -161,30 +194,30 @@ const INT_CURR_SYMBOL = nl_item(LC_MONETARY, 0)
 const CURRENCY_SYMBOL = nl_item(LC_MONETARY, 1)
 const MON_DECIMAL_POINT = nl_item(LC_MONETARY, 2)
 const MON_THOUSANDS_SEP = nl_item(LC_MONETARY, 3)
-const MON_GROUPING = nl_item(LC_MONETARY, 4)
+const MON_GROUPING = nl_item(LC_MONETARY, 4, 2)
 const POSITIVE_SIGN = nl_item(LC_MONETARY, 5)
 const NEGATIVE_SIGN = nl_item(LC_MONETARY, 6)
-const INT_FRAC_DIGITS = nl_item(LC_MONETARY, 7)
-const FRAC_DIGITS = nl_item(LC_MONETARY, 8)
-const P_CS_PRECEDES = nl_item(LC_MONETARY, 9)
-const P_SEP_BY_SPACE = nl_item(LC_MONETARY, 10)
-const N_CS_PRECEDES = nl_item(LC_MONETARY, 11)
-const N_SEP_BY_SPACE = nl_item(LC_MONETARY, 12)
-const P_SIGN_POSN = nl_item(LC_MONETARY, 13)
-const N_SIGN_POSN = nl_item(LC_MONETARY, 14)
+const INT_FRAC_DIGITS = nl_item(LC_MONETARY, 7, 2)
+const FRAC_DIGITS = nl_item(LC_MONETARY, 8, 2)
+const P_CS_PRECEDES = nl_item(LC_MONETARY, 9, 2)
+const P_SEP_BY_SPACE = nl_item(LC_MONETARY, 10, 2)
+const N_CS_PRECEDES = nl_item(LC_MONETARY, 11, 2)
+const N_SEP_BY_SPACE = nl_item(LC_MONETARY, 12, 2)
+const P_SIGN_POSN = nl_item(LC_MONETARY, 13, 2)
+const N_SIGN_POSN = nl_item(LC_MONETARY, 14, 2)
 const CRNCYSTR = nl_item(LC_MONETARY, 15)
-const INT_P_CS_PRECEDES = nl_item(LC_MONETARY, 16)
-const INT_P_SEP_BY_SPACE = nl_item(LC_MONETARY, 17)
-const INT_N_CS_PRECEDES = nl_item(LC_MONETARY, 18)
-const INT_N_SEP_BY_SPACE = nl_item(LC_MONETARY, 19)
-const INT_P_SIGN_POSN = nl_item(LC_MONETARY, 20)
-const INT_N_SIGN_POSN = nl_item(LC_MONETARY, 21)
+const INT_P_CS_PRECEDES = nl_item(LC_MONETARY, 16, 2)
+const INT_P_SEP_BY_SPACE = nl_item(LC_MONETARY, 17, 2)
+const INT_N_CS_PRECEDES = nl_item(LC_MONETARY, 18, 2)
+const INT_N_SEP_BY_SPACE = nl_item(LC_MONETARY, 19, 2)
+const INT_P_SIGN_POSN = nl_item(LC_MONETARY, 20, 2)
+const INT_N_SIGN_POSN = nl_item(LC_MONETARY, 21, 2)
 const MONETARY_CODESET = nl_item(LC_MONETARY, 45)
 const NUM_LC_MONETARY = 46 
 
-const PAPER_HEIGHT = nl_item(LC_PAPER, 0)
-const PAPER_WIDTH = nl_item(LC_PAPER, 1)
-const PAPER = nl_item(LC_PAPER, 2)
+const PAPER_HEIGHT = nl_item(LC_PAPER, 0, 1)
+const PAPER_WIDTH = nl_item(LC_PAPER, 1, 1)
+const PAPER_CODESET = nl_item(LC_PAPER, 2)
 const NUM_LC_PAPER = 3 
 
 const NAME_FMT = nl_item(LC_NAME, 0)
@@ -202,7 +235,7 @@ const ADDRESS_COUNTRY_POST = nl_item(LC_ADDRESS, 2)
 const ADDRESS_COUNTRY_AB2 = nl_item(LC_ADDRESS, 3)
 const ADDRESS_COUNTRY_AB3 = nl_item(LC_ADDRESS, 4)
 const ADDRESS_COUNTRY_CAR = nl_item(LC_ADDRESS, 5)
-const ADDRESS_COUNTRY_NUM = nl_item(LC_ADDRESS, 6)
+const ADDRESS_COUNTRY_NUM = nl_item(LC_ADDRESS, 6, 1)
 const ADDRESS_COUNTRY_ISBN = nl_item(LC_ADDRESS, 7)
 const ADDRESS_LANG_NAME = nl_item(LC_ADDRESS, 8)
 const ADDRESS_LANG_AB = nl_item(LC_ADDRESS, 9)
@@ -218,7 +251,7 @@ const TELEPHONE_INT_PREFIX = nl_item(LC_TELEPHONE, 3)
 const TELEPHONE_CODESET = nl_item(LC_TELEPHONE, 4)
 const NUM_LC_TELEPHONE = 5 
 
-const MEASUREMENT = nl_item(LC_MEASUREMENT, 0)
+const MEASUREMENT = nl_item(LC_MEASUREMENT, 0, 2)
 const MEASUREMENT_CODESET = nl_item(LC_MEASUREMENT, 1)
 const NUM_LC_MEASUREMENT = 2 
 
