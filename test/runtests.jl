@@ -24,6 +24,8 @@ test_log(log::Test.TestLogger) = isempty(test_log_filter(log))
 # ignore messages from Core module
 test_log_filter(log::Test.TestLogger) = filter(lr->lr._module != Core, log.logs)
 
+
+@testset "types" begin include("types.jl") end
 @testset "locale" begin include("locale.jl") end
 @testset "resource_bundle" begin include("resource_bundle.jl") end
 @testset "string" begin include("string.jl") end
