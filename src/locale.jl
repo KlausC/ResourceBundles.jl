@@ -1,6 +1,7 @@
 
 using .Constants
 using .LocaleIdTranslations
+using .LC
 
 export LocaleId, Locales, default_locale, locale_id, locale, set_locale!
 
@@ -260,29 +261,26 @@ Throw exception, if no valid category name.
 Valid categories are
 :CTYPE, :COLLATE, :MESSAGES, :MONETARY, :NUMERIC, :TIME
 """
-locale_id(category::Symbol) = locale().dict[category]
-locale_id(gloc::Locale, category::Symbol) = gloc.dict[category]
+locale_id(cat::Category) = locale().locids[cat.id+1]
+locale_id(gloc::Locale, cat::Category) = gloc.locids[cat.id+1]
 
 """
 
-    set_locale!([gloc::Locale, ]locale::LocaleId[, category::Symbol...])
+    set_locale!([gloc::Locale, ]locale::LocaleId[, category::CategorySet])
 
 Set contents of locale in selected categories.
 Missing category or :ALL sets all defined categories to the same locale.
 If `gloc` is not given, the current task-specific locale is used.
 Throw exception if category is not :ALL or one of the supported categories of `locale`.
 """
-set_locale!(loc::LocaleId, cats::Symbol...) = set_locale!(locale(), loc, cats...)
+set_locale!(loc::LocaleId, cats::CategorySet = LC.ALL) = set_locale!(locale(), loc, cats)
 
-function set_locale!(gloc::Locale, loc::LocaleId, cats::Symbol...)
-    cld = gloc.dict
-    valid = keys(cld) 
-    cats ⊆ valid || :ALL in cats || error("unsupported categories in $cats")
-    cat2 = :ALL in cats || isempty(cats) ? valid : cats
-    for cat in cat2
-        cld[cat] = loc == DEFAULT ? default_locale(cat) : loc
+function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
+    cld = gloc.locids
+    for cat in cats
+        cld[cat.id+1] = loc == DEFAULT ? default_locale(cat) : loc
     end
-    gloc.cloc = CLocales.newlocale(loc, gloc.cloc, cat2...)
+    gloc.cloc = CLocales.newlocale(cats, loc, gloc.cloc)
     nothing
 end
 
@@ -302,8 +300,8 @@ NUMERIC     number formats
 MONETARY    format of monetary values
 TIME        date/time formats
 """
-function default_locale(category::Union{Symbol,AbstractString})
-    LocaleId(localeid_from_env(string(category)))
+function default_locale(category::Category)
+    LocaleId(localeid_from_env(category))
 end
 
 """
@@ -341,14 +339,10 @@ Create and initialize a new `Locale` object.
 """
 function Locale()
     gloc = Locale(Ptr{Nothing}(0))
-    for cat in ALL_CATEGORIES
+    for cat in LC.ALL_CATS
         set_locale!(gloc, default_locale(cat), cat)
     end
     gloc
-end
-
-function all_default_categories()
-    Dict{Symbol,LocaleId}([x => DEFAULT for x in ALL_CATEGORIES])
 end
 
 """
@@ -370,7 +364,6 @@ end
 
 # finalizer required to free the associated clib object.
 function finalize_gloc(gloc::Locale)
-    empty!(gloc.dict)
     if gloc.cloc != Ptr{Nothing}(0)
         CLocales.freelocale(gloc.cloc)
     end

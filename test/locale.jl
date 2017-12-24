@@ -1,4 +1,5 @@
 using .Locales
+using .LC
 
 # Construct LocaleId from language tags
 @test LocaleId("") === DEFAULT
@@ -108,24 +109,24 @@ delete!(ENV, "LC_NUMERIC")
 delete!(ENV, "LC_MONETARY")
 
 ENV["LC_ALL"] = "en_GB"
-@test default_locale(:MESSAGES) === LocaleId("en-GB")
+@test default_locale(LC.MESSAGES) === LocaleId("en-GB")
 ENV["LC_ALL"] = "en_GB.utf8"
-@test default_locale(:COLLATE) === LocaleId("en-GB")
+@test default_locale(LC.COLLATE) === LocaleId("en-GB")
 ENV["LC_ALL"] = "en_GB.utf8@oed"
-@test default_locale(:TIME) === LocaleId("en-GB-x-posix-oed")
+@test default_locale(LC.TIME) === LocaleId("en-GB-x-posix-oed")
 ENV["LC_ALL"] = "en_GB@oed"
-@test default_locale(:NUMERIC) === LocaleId("en-GB-x-posix-oed")
+@test default_locale(LC.NUMERIC) === LocaleId("en-GB-x-posix-oed")
 
 delete!(ENV, "LC_ALL")
 ENV["LC_MONETARY"] = "en_US.utf8"
-@test default_locale(:MONETARY) === LocaleId("en-US")
+@test default_locale(LC.MONETARY) === LocaleId("en-US")
 ENV["LC_TIME"] = "en_CA"
-@test default_locale(:TIME) === default_locale(:LC_TIME)
+@test default_locale(LC.TIME) === LocaleId("en-ca") 
 
 ENV["LC_TIME"] = ""
 delete!(ENV, "LC_MONETARY")
 ENV["LANG"] = "fr_FR@guadelo"
-@test default_locale(:TIME) === LocaleId("fr-FR-x-posix-guadelo")
+@test default_locale(LC.TIME) === LocaleId("fr-FR-x-posix-guadelo")
 ENV["LANG"] = "C"
-@test default_locale(:TIME) === LocaleId("C")
+@test default_locale(LC.TIME) === LocaleId("C")
 

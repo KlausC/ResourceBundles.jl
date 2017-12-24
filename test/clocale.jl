@@ -1,10 +1,10 @@
 
 using .CLocales
+using .LC
 
-
-set_locale!(LocaleId("C"), :ALL)
+set_locale!(LocaleId("C"), LC.ALL)
 const cl = locale()
-const ALLCAT = collect(keys(cl.dict))
+const ALLCAT = collect(LC.ALL)
 
 @test cl != Ptr{Nothing}(0)
 
@@ -20,7 +20,7 @@ clocid = "fr_FR.utf8"
 ENV["LANG"] = clocid
 ENV["LC_ALL"] = ""
 
-set_locale!(LocaleId(""), :ALL)
+set_locale!(LocaleId(""), LC.ALL)
 
 @testset "clocale identifiers from envionment for $sym" for sym in ALLCAT
     @test clocale_id(sym) == clocid
@@ -34,24 +34,24 @@ end
 end
 
 @testset "setting and querying clocalesi prog" begin
-    @test clocale_id(:NUMERIC) == "fr_FR.utf8"
+    @test clocale_id(LC.NUMERIC) == "fr_FR.utf8"
     set_locale!(LocaleId("C"))
-    set_locale!(LocaleId("tr_TR"), :MESSAGES)
-    set_locale!(LocaleId("en-us"), :MONETARY)
-    @test clocale_id(:CTYPE) == "C"
-    @test clocale_id(:NUMERIC) == "C"
-    @test clocale_id(:MESSAGES) == "tr_TR.utf8"
-    @test clocale_id(:MONETARY) == "en_US.utf8"
+    set_locale!(LocaleId("tr_TR"), LC.MESSAGES)
+    set_locale!(LocaleId("en-us"), LC.MONETARY)
+    @test clocale_id(LC.CTYPE) == "C"
+    @test clocale_id(LC.NUMERIC) == "C"
+    @test clocale_id(LC.MESSAGES) == "tr_TR.utf8"
+    @test clocale_id(LC.MONETARY) == "en_US.utf8"
 end
 
 ENV["LC_ALL"] = "de_DE.utf8"
-set_locale!(LocaleId(""), :MESSAGES, :NAME)
+set_locale!(LocaleId(""), LC.MESSAGES | LC.NAME)
 
 @testset "setting and querying clocales ENV" begin
-    @test clocale_id(:NUMERIC) == "C"
-    @test clocale_id(:MESSAGES) == "de_DE.utf8"
-    @test clocale_id(:NAME) == "de_DE.utf8"
-    @test clocale_id(:MONETARY) == "en_US.utf8"
+    @test clocale_id(LC.NUMERIC) == "C"
+    @test clocale_id(LC.MESSAGES) == "de_DE.utf8"
+    @test clocale_id(LC.NAME) == "de_DE.utf8"
+    @test clocale_id(LC.MONETARY) == "en_US.utf8"
 end
 
 import .CLocales:

@@ -76,7 +76,7 @@ keya = ((x->"T" * string(x)).(0:7))
 
 log = Test.TestLogger(min_level=Logging.Warn)
 
-locm = locale_id(:MESSAGES)
+locm = locale_id(LC.MESSAGES)
 
 @testset "message lookup for locale $loc and key $key" for loc in locs, key in keya
     res = results[loc, key]
@@ -89,13 +89,13 @@ locm = locale_id(:MESSAGES)
         @test get(bundle, loc, key, key) == r
         @test test_log(log, w)
     
-        set_locale!(loc, :MESSAGES)
+        set_locale!(loc, LC.MESSAGES)
         @test get(bundle, key, key) == r
         test_log(log, w)
     end
 end
 
-set_locale!(locm, :MESSAGES)
+set_locale!(locm, LC.MESSAGES)
 
 with_logger(log) do
     @test keys(bundle, LocaleId("")) == ["T1", "T2", "T3", "T4", "T5"]

@@ -18,3 +18,8 @@ lcc = LC.CTYPE
 @test lci | lct ⊆ lca
 @test lcc | lci | lct | lci === lci | lct | lcc
 
+@test collect(lci) == [lci]
+@test collect(lci | lct) == [lct, lci]
+@test length(collect(lca )) == 12
+
+

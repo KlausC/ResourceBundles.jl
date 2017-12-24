@@ -1,36 +1,8 @@
 
-"""
-
-    struct LocaleId
-
-Represent a Languange Tag, also known as Locale Identifier as defined by BCP47.
-See: https://tools.ietf.org/html/bcp47
-"""
-struct LocaleId
-    language::Symbol
-    script::Symbol
-    region::Symbol
-    variants::Vector{Symbol}
-    extensions::Union{Dict{Char,Vector{Symbol}},Nothing}
-end
-
-"""
-    mutable struct Locale
-
-Keeps a locale identifier for each locale category.
-The locale categories are defined like in GNU (see `man 7 locale`).
-Parallel to that the libc implementation of locale is kept as a cache.
-It is maintained by the libc functions `newlocale` / `freelocale`.
-"""
-mutable struct Locale
-    dict::Dict{Symbol,LocaleId}
-    cloc::Ptr{Nothing}
-    Locale(ptr::Ptr{Nothing}) = new(all_default_categories(), ptr)
-end
-
 module LC
 
 export Category, CategorySet
+import Base: show, issubset, |, start, done, next, length
 
 """
     Locale category.
@@ -62,10 +34,12 @@ const TELEPHONE = _CategoryImplementation(:TELEPHONE, 10)
 const MEASUREMENT = _CategoryImplementation(:MEASUREMENT, 11)
 const IDENTIFICATION = _CategoryImplementation(:IDENTIFICATION, 12)
 
-const _ALL_CATS = [CTYPE, NUMERIC, TIME, COLLATE, MONETARY, MESSAGES, ALL,
+const ALL_CATS = [CTYPE, NUMERIC, TIME, COLLATE, MONETARY, MESSAGES, ALL,
                    PAPER, NAME, ADDRESS, TELEPHONE, MEASUREMENT, IDENTIFICATION]
 
-const _MASK_ALL = Cint(64)
+const NUM_CATS = 13
+const _MASK_ALL = Cint(1<<6)
+const _MASK_SUM = Cint(((1<<NUM_CATS)-1) & ~_MASK_ALL) # bits of all valid categories
 
 struct _CategorySetImplementation <: CategorySet
     mask::Cint
@@ -73,13 +47,12 @@ struct _CategorySetImplementation <: CategorySet
 end 
 
 mask(cat::CategorySet) = cat.mask
-import Base: show, issubset, |
 
 show(io::IO, cat::Category) = print(io, string(cat.name))
 function show(io::IO, cs::CategorySet)
     mcs = mask(cs)
     suc = false
-    for cat in _ALL_CATS
+    for cat in ALL_CATS
         if mcs & mask(cat) != 0
             suc && print(io, '|')
             show(io, cat)
@@ -102,8 +75,46 @@ function |(a::CategorySet, b::CategorySet)
     _CategorySetImplementation(mab)
 end
 
+start(cat::CategorySet) = cat === ALL ? _MASK_SUM : cat.mask
+done(cat::CategorySet, s) = s == 0
+function next(cat::CategorySet, s)
+    ix = trailing_zeros(s) + 1
+    cat = ALL_CATS[ix]
+    cat, s & ~mask(cat)
+end
+length(cat::Category) = cat == ALL ? count_ones(_MASK_SUM) : 1
+length(cat::CategorySet) = count_ones(mask(cat))
+
 end # module LC
 
+"""
+
+    struct LocaleId
+
+Represent a Languange Tag, also known as Locale Identifier as defined by BCP47.
+See: https://tools.ietf.org/html/bcp47
+"""
+struct LocaleId
+    language::Symbol
+    script::Symbol
+    region::Symbol
+    variants::Vector{Symbol}
+    extensions::Union{Dict{Char,Vector{Symbol}},Nothing}
+end
+
+"""
+    mutable struct Locale
+
+Keeps a locale identifier for each locale category.
+The locale categories are defined like in GNU (see `man 7 locale`).
+Parallel to that the libc implementation of locale is kept as a cache.
+The latter is maintained by the libc functions `newlocale` / `freelocale`.
+"""
+mutable struct Locale
+    locids::Vector{LocaleId}
+    cloc::Ptr{Nothing}
+    Locale(ptr::Ptr{Nothing}) = new(fill(LocaleId(""), LC.NUM_CATS), ptr)
+end
 
 ### unexported types
 

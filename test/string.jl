@@ -1,4 +1,5 @@
 using Logging
+using .LC
 
 const a1 = "arg1"
 const a2 = "arg2"
@@ -12,7 +13,7 @@ city = "Frankfurt"
 temp = 29.0
 ndhi = 15
 
-set_locale!(LocaleId("en-us"), :MESSAGES)
+set_locale!(LocaleId("en-us"), LC.MESSAGES)
 @test tr"T3" == "T3 - en_US"
 @test tr"original $a1($a2) : $(a3*2)" == "US version $(a3*2) / $a2 $a1"
 
@@ -27,7 +28,7 @@ set_locale!(LocaleId("en-us"), :MESSAGES)
 @test tr"These are $(0) houses" == "This is not a house"
 @test tr"These are $(hmany-hmany) houses" == "This is not a house"
 
-set_locale!(LocaleId("fr"), :MESSAGES)
+set_locale!(LocaleId("fr"), LC.MESSAGES)
 @test tr"original $a1($a2) : $(a3*2)" == "original $a1($a2) : $(a3*2)"
 
 @test tr"These are $(1) houses" == "C'est 1 maison"
@@ -36,7 +37,7 @@ set_locale!(LocaleId("fr"), :MESSAGES)
 @test tr"These are $h0 houses" == "C'est 0 maison"
 
 # data for this locale are stored in po-file
-set_locale!(LocaleId("de-AT"), :MESSAGES)
+set_locale!(LocaleId("de-AT"), LC.MESSAGES)
 @test tr"These are $(1) houses" == "Das ist ein Haus"
 @test tr"These are $(hmany*3+3) houses" == "Das sind 42 Häuser"
 @test tr"These are $(10) houses" == "Das sind 10 Häuser"
@@ -90,9 +91,9 @@ mess = isempty(log.logs) ? "" : log.logs[1].message
 @test string_to_key(raw"with $v1 and $(!(expr+2))") == raw"with $(2) and $(1)"
 
 # data for this locale are stored in little-endian mo-file
-set_locale!(LocaleId("de-LU"), :MESSAGES)
+set_locale!(LocaleId("de-LU"), LC.MESSAGES)
 @test tr"§testctx§original" == "O r i g i n a l"
 
 # data for this locale are stored in big-endian mo-file
-set_locale!(LocaleId("de-CH"), :MESSAGES)
+set_locale!(LocaleId("de-CH"), LC.MESSAGES)
 @test tr"§testctx§original" == "O r i g i n a l"

@@ -1,9 +1,8 @@
 
 ### accessing libc functions (XOPEN_SOURCE >= 700, POSIX_C_SOURCE >= 200809L glibc>=2.24)
 
-function newlocale_c(mask::Int, clocale::AbstractString, base::CLocaleType)
-    cmask = fixmask(mask)
-    ccall(:newlocale, CLocaleType, (Cint, Cstring, CLocaleType), cmask, clocale, base)
+function newlocale_c(mask::Cint, clocale::AbstractString, base::CLocaleType)
+    ccall(:newlocale, CLocaleType, (Cint, Cstring, CLocaleType), mask, clocale, base)
 end
 
 function duplocale(ploc::CLocaleType)

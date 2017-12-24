@@ -1,5 +1,6 @@
 using Base.Filesystem
 using Unicode
+using .LC
 
 const LocalePattern = LocaleId
 const Pathname = String
@@ -305,7 +306,7 @@ function get_resource_by_key(bundle::ResourceBundle, loc::LocaleId, key::Abstrac
 end
 
 # variants using default locale for messages
-msg_loc() = locale_id(:MESSAGES)
+msg_loc() = locale_id(LC.MESSAGES)
 get(bundle::ResourceBundle, key::String, default=nothing) = get(bundle, msg_loc(), key, default)
 get_resource_by_key(bundle::ResourceBundle, key::String) =  get_resource_by_key(bundle, msg_loc(), key)
 
