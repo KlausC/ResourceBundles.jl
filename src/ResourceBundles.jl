@@ -11,6 +11,11 @@ if VERSION < v"0.7-DEV"
     export @__MODULE__
 end
 
+if VERSION < v"0.7-DEV.3176"
+    const Nothing = Void
+    const Cvoid = Void
+end
+
 include("types.jl")
 include("constants.jl")
 include("locale_iso_data.jl")
