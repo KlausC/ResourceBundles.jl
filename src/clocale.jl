@@ -9,7 +9,7 @@ import ResourceBundles: LocaleId, S0, locale, CLocaleType
 
 export current_locale, newlocale, duplocale, freelocale, nl_langinfo, clocale_id
 export NlItem, category, offset, typ
-export strcoll, strxfrm
+export strcoll, localize_isless
 export LC_GLOBAL_LOCALE
 
 """
@@ -49,14 +49,24 @@ Return `a < b ? -1 : a > b ? 1 : 0`.
 """
 strcoll(a::AbstractString, b::AbstractString) = strcoll_c(a, b, current_clocale())
 function strcoll(a::AbstractString, b::AbstractString, loc::LocaleId)
-    ploc = newlocale(LC.COLLATE, loc)
+    ploc = newlocale(LC.ALL, loc)
     if ploc != CL0
-        res = strcoll(a, b, loc_to_cloc(loc))
+        res = strcoll_c(a, b, ploc)
         freelocale(ploc)
-        return res
+        res
+    else
+        error("no posix locale found for $loc")
     end
-    error("no posix locale found for $loc")
 end
+
+"""
+    localized_isless([loc::LocaleId])
+
+Return isless function comparing two strings accoding to locale specific collation rules. 
+If loc is not specified, use category `COLLATE` of current locale.
+"""
+localized_isless() = (a::AbstractString, b::AbstractString) -> strcoll(a, b) < 0
+localized_isless(loc::LocaleId) = (a::AbstractString, b::AbstractString) -> strcoll(a, b, loc) < 0
 
 """
 Mask composed of output-type, category, and offset
@@ -103,6 +113,9 @@ nl_convert(::Val{0}, res::Ptr{UInt8}) = res === PU0 ? "" : unsafe_string(res)
 nl_convert(::Val{1}, res::Ptr{UInt8}) = Int(Base.bitcast(PTYPE, res))
 nl_convert(::Val{2}, res::Ptr{UInt8}) = res === PU0 ? 0 : Int(unsafe_wrap(Array, res, 1)[1])
 
+err_day(i::Integer) = throw(ArgumentError("day of week ($i) not between 1 and 7"))
+err_month(i::Integer) = throw(ArgumentError("month number ($i) not between 1 and 12"))
+
 """
     clocale_id(category[, cloc::CLocaleType])
 
@@ -125,10 +138,10 @@ const GROUPING = nl_item(LC.NUMERIC, 2, 2)
 const NUMERIC_CODESET = nl_item(LC.NUMERIC, 5)
 const NUM_LC_NUMERIC = 6 
 
-ABDAY(i::Int) = nl_item(LC.TIME, i-1)
-DAY(i::Int) = nl_item(LC.TIME, i+6)
-ABMON(i::Int) = nl_item(LC.TIME, 13+i)
-MON(i::Int) = nl_item(LC.TIME, 25+i)
+ABDAY(i::Integer) = 1 <= i <= 7 ? nl_item(LC.TIME, i-1) : err_day(i)
+DAY(i::Integer) = 1 <= i <= 7 ? nl_item(LC.TIME, i+6) : err_day(i)
+ABMON(i::Integer) = 1 <= i <= 12 ? nl_item(LC.TIME, 13+i) : err_month(i)
+MON(i::Integer) = 1 <= i <= 12 ? nl_item(LC.TIME, 25+i) : err_month(i)
 const AM_STR = nl_item(LC.TIME, 38)
 const PM_STR = nl_item(LC.TIME, 39)
 const D_T_FMT = nl_item(LC.TIME, 40)
@@ -141,6 +154,15 @@ const ERA_D_FMT = nl_item(LC.TIME, 46)
 const ALT_DIGITS = nl_item(LC.TIME, 47) 
 const ERA_D_T_FMT = nl_item(LC.TIME, 48) 
 const ERA_T_FMT = nl_item(LC.TIME, 49) 
+const NUM_ERA_ENTRIES = nl_item(LC.TIME, 50, 1) 
+const WEEK_NDAYS = nl_item(LC.TIME, 101, 2)
+const WEEK_1STDAY = nl_item(LC.TIME, 102, 1)
+const WEEK_1STWEEK = nl_item(LC.TIME, 103, 2)
+const FIRST_WEEKDAY = nl_item(LC.TIME, 104, 2)
+const FIRST_WORKDAY = nl_item(LC.TIME, 105, 2)
+const CAL_DIRECTION = nl_item(LC.TIME, 106, 2)
+const TIMEZONE = nl_item(LC.TIME, 107)
+const DATE_FMT = nl_item(LC.TIME, 108)
 const TIME_CODESET = nl_item(LC.TIME, 110) 
 const NUM_LC_TIME = 111 
 

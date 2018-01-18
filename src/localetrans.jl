@@ -93,7 +93,7 @@ Comparable with cloc_to_loc.
 """
 function loc_to_cloc(loc::LocaleId)
     s = string(loc)
-    s == "C" || uppercase(s) == "POSIX" && return "C"
+    ( s == "C" || uppercase(s) == "POSIX" ) && return "C"
     s == "" && return s
     lang = loc.language
     reg = loc.region

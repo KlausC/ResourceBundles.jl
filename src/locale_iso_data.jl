@@ -702,7 +702,7 @@ function Base.getindex(d::StringDict{K,L,M}, x3::Union{T,Symbol}) where {K,L,M,T
     length(x) != L && return isa(x3, Symbol) ? x3 : Symbol(x3)
     ix = K
     while ix >= 0 && ix % M != K+1
-        ix = searchindex(d.data, x, ix+1)
+        ix = first(findnext(x, d.data, ix+1))
         ix = ifelse(ix == 0, -1, ix)
     end
     ix > 0  ? Symbol(d.data[ix-K:ix-1]) : isa(x3, Symbol) ? x3 : Symbol(x)

@@ -1,7 +1,8 @@
 module ResourceBundles
 
-export ResourceBundles, ResourceBundle, resource_bundle, @resource_bundle
-export LocaleId
+export ResourceBundles
+export ResourceBundle, resource_bundle, @resource_bundle
+export LocaleId, LC
 export @tr_str, string_to_key
 
 if VERSION < v"0.7-DEV"

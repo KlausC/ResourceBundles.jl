@@ -182,8 +182,8 @@ end
 # character properties for all characters in string
 is_alpha(x::AS) = all(isalpha, x)
 is_digit(x::AS) = all(isdigit, x)
-is_alnum(x::AS) = all(isalnum, x)
-is_alnumsep(x::AS) = all(c->isascii(c) && ( isalnum(c) || c in "-_.@" ), x)
+is_alnum(x::AS) = all(is_alnum, x)
+is_alnumsep(x::AS) = all(c->isascii(c) && ( is_alnum(c) || c in "-_.@" ), x)
 
 # equality
 function ==(x::LocaleId, y::LocaleId)

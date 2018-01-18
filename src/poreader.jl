@@ -152,12 +152,12 @@ function read_mo_file(f::AbstractString)
         ptrt = d[tranp+i+1]
         stro = String(data[ptro+1:ptro+leno])  
         strt = String(data[ptrt+1:ptrt+lent])  
-        ix = searchindex(stro, EOT)
+        ix = coalesce(findfirst(equalto(EOT), stro), 0)
         if ix > 0
             ti.context = stro[1:prevind(stro, ix)]
             stro = stro[nextind(stro, ix):end]
         end
-        ix = searchindex(stro, NUL)
+        ix = coalesce(findfirst(equalto(NUL), stro), 0)
         if ix > 0
             ti.plural = stro[nextind(stro, ix):end]
             stro = stro[1:prevind(stro, ix)]

@@ -22,13 +22,15 @@ end
 #    Resource(f, BOTTOM, 1, (n)->0, res)
 #end
 
+is_alnum(x::Char) = isalpha(x) || isnumeric(x)
+
 struct ResourceBundle
     path::Pathname
     name::String
     cache::Dict{LocaleId,Cache}
     lock::Threads.RecursiveSpinLock
     function ResourceBundle(path::Pathname, name::AbstractString)
-        ( !isempty(name) && all(isalnum, name) ) ||
+        ( !isempty(name) && all(is_alnum, name) ) ||
             throw(ArgumentError("resource names require alphanumeric but is `$name`"))
         new(path, string(name), Dict{LocaleId,Cache}(), Threads.RecursiveSpinLock())
     end
@@ -39,6 +41,7 @@ function ResourceBundle(mod::Module, name::AbstractString)
 end
 
 const Empty = ResourceBundle("", "empty")
+
 
 const SEP = '-'
 const SEP2 = '_'
