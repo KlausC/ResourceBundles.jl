@@ -30,6 +30,6 @@ test_log_filter(log::Test.TestLogger) = filter(lr->lr._module != Core, log.logs)
 @testset "resource_bundle" begin include("resource_bundle.jl") end
 @testset "string" begin include("string.jl") end
 @testset "libc" begin include("libc.jl") end
-@testset "clocale" begin include("clocale.jl") end
-@testset "localetrans" begin include("localetrans.jl") end
+# @testset "clocale" begin include("clocale.jl") end
+# @testset "localetrans" begin include("localetrans.jl") end
 
