@@ -124,7 +124,7 @@ function splitlangtag(x::AS)
     x = cloc_to_loc(x) # handle and replace '.' and '@'.
     x = replace(x, SEP => SEP2) # normalize input
     x = get(GRANDFATHERED, x, x) # replace some old-fashioned language tags
-    token = split(x, SEP2, keep=true)
+    token = split(x, SEP2, keepempty=true)
     lang = ""
     langex = String[]
     scri = ""
@@ -180,7 +180,7 @@ function splitlangtag(x::AS)
 end
 
 # character properties for all characters in string
-is_alpha(x::AS) = all(isalpha, x)
+is_alpha(x::AS) = all(isletter, x)
 is_digit(x::AS) = all(isdigit, x)
 is_alnum(x::AS) = all(is_alnum, x)
 is_alnumsep(x::AS) = all(c->isascii(c) && ( is_alnum(c) || c in "-_.@" ), x)
@@ -188,12 +188,15 @@ is_alnumsep(x::AS) = all(c->isascii(c) && ( is_alnum(c) || c in "-_.@" ), x)
 # equality
 function ==(x::LocaleId, y::LocaleId)
     x === y && return true
-    x.language == y.language &&
+    flat(x.language) == flat(y.language) &&
     x.script == y.script &&
     x.region == y.region &&
     x.variants == y.variants &&
     x.extensions == y.extensions
 end
+
+flat(lang::Symbol) = lang == :C ? S0 : lang
+
 
 function hash(x::LocaleId, h::UInt)
     hash(x.extensions, hash(x.variants, hash(x.region, hash(x.script, hash(x.language, h)))))
@@ -248,7 +251,7 @@ function Base.show(io2::IO, x::LocaleId)
 end
 
 const CACHE = Dict{Key, LocaleId}()
-const CACHE_LOCK = Threads.RecursiveSpinLock()
+const CACHE_LOCK = ReentrantLock()
 
 
 """
@@ -276,12 +279,17 @@ Throw exception if category is not :ALL or one of the supported categories of `l
 set_locale!(loc::LocaleId, cats::CategorySet = LC.ALL) = set_locale!(locale(), loc, cats)
 
 function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
-    cld = gloc.locids
-    for cat in cats
-        cld[cat.id+1] = loc == DEFAULT ? default_locale(cat) : loc
+    cloc = CLocales.newlocale(cats, loc, gloc.cloc)
+    if cloc != Ptr{Nothing}(0)
+        cld = gloc.locids
+        for cat in cats
+            cld[cat.id+1] = loc == DEFAULT ? default_locale(cat) : loc
+        end
+        gloc.cloc = cloc
+        true
+    else
+        false
     end
-    gloc.cloc = CLocales.newlocale(cats, loc, gloc.cloc)
-    nothing
 end
 
 """

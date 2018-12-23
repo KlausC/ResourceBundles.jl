@@ -205,7 +205,7 @@ end
 
 module Sandbox end
 # clip output of eval(ex(n)) to interval [0, m)
-create_plural(ex::Expr, m) = n -> max(min(Base.invokelatest(eval(Sandbox, ex), n), m-1), 0)
+create_plural(ex::Expr, m) = n -> max(min(Base.invokelatest(Sandbox.eval(ex), n), m-1), 0)
 
 # avoid the following error when calling f by invokelatest:
 # "MethodError: no method matching (::getfield(ResourceBundles, Symbol("...")))(::Int64)
@@ -233,7 +233,7 @@ function translate_plural_data(str::AbstractString)
         if isa(a, Expr) && a.head == :(=)
             var, ex = a.args
             if var == :nplurals
-                nplurals = Int(eval(Sandbox, ex)) # evaluate right hand side
+                nplurals = Int(Sandbox.eval(ex)) # evaluate right hand side
             elseif var == :plural
                 ex2 = Expr(:(->), :n, ex)
                 plural = create_plural(ex2, nplurals)

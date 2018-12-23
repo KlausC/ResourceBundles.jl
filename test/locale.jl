@@ -118,7 +118,7 @@ ENV["LC_ALL"] = "en_GB@oed"
 @test default_locale(LC.NUMERIC) === LocaleId("en-GB-x-posix-oed")
 
 delete!(ENV, "LC_ALL")
-ENV["LC_MONETARY"] = "en_US.utf8"
+ENV["LC_MONETARY"] = "en_US.UTF-8"
 @test default_locale(LC.MONETARY) === LocaleId("en-US")
 ENV["LC_TIME"] = "en_CA"
 @test default_locale(LC.TIME) === LocaleId("en-ca") 

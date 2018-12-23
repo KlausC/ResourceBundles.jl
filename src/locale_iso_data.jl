@@ -712,13 +712,18 @@ Base.keys(d::StringDict{K,L,M}) where {K,L,M} = StringKeyIterator{K,L,M}(d.data)
 struct StringKeyIterator{K,L,M}
     data::String
 end
-Base.start(d::StringDict{K,L,M}) where {K,L,M} = 0
-Base.next(d::StringDict{K,L,M}, s) where {K,L,M} = K == 0 ? Symbol(d.data[s+1:s+L]) : Symbol(d.data[s+K+1:s+K+L]) => Symbol(d.data[s+1:s+K]), s + M
-Base.done(d::StringDict{K,L,M}, s) where {K,L,M}= s >= length(d.data)
+Base.iterate(d::StringDict{K,L,M}) where {K,L,M} = iterate(d, 0)
+function Base.iterate(d::StringDict{K,L,M}, s) where {K,L,M}
+    s >= length(d.data) && return nothing
+    K == 0 ? Symbol(d.data[s+1:s+L]) : Symbol(d.data[s+K+1:s+K+L]) => Symbol(d.data[s+1:s+K]), s + M
+end
 Base.length(d::StringDict{K,L,M}) where {K,L,M} = length(d.data) ÷ M
-Base.start(it::StringKeyIterator{K,L,M}) where {K,L,M} = 1 + K
-Base.next(it::StringKeyIterator{K,L,M}, s) where {K,L,M} = Symbol(it.data[s:s+L-1]), s + M
-Base.done(it::StringKeyIterator{K,L,M}, s) where {K,L,M}= s > length(it.data)
+
+Base.iterate(it::StringKeyIterator{K,L,M}) where {K,L,M} = iterate(it, 1 + K)
+function Base.iterate(it::StringKeyIterator{K,L,M}, s) where {K,L,M}
+    s > length(it.data) && return nothing
+    Symbol(it.data[s:s+L-1]), s + M
+end
 Base.length(it::StringKeyIterator{K,L,M}) where {K,L,M} = length(it.data) ÷ M
 Base.in(x, d::StringDict{0,L,M}) where {L,M} = d[x] == Symbol("")
 

@@ -57,7 +57,7 @@ git clone http://github.com/KlausC/ResourceBundles.jl ResourceBundles
 module MyModule
 using ResourceBundles
 
-Locales.set_locale!(:MESSAGES, Locale("de"))
+set_locale!(:MESSAGES, Locale("de"))
 
 println(tr"$(context=test)original text")
 println(tr"$n dogs have $(4n) legs")
@@ -126,7 +126,7 @@ All those formats are converted to a canonical form and stored in objects of typ
 The `_` may be replaced by `-` in input.
 
 `LocaleId` implements the `equals` and the `issubset` (`⊆`) relations. 
-Here `Locale("en_US") ⊆ Locale("en") ⊆ Locale("C") === Locale("")`.
+Here `LocaleId("en_US") ⊆ LocaleId("en") ⊆ LocaleId("C") == LocaleId("")`.
 
 The `Locale` is a set of locale-properties for several categories. The categories are taken
 from the GNU implementation. Each locale-property is identified by a `LocaleId`.
@@ -147,17 +147,16 @@ Each resource bundle is bound to a package. The corresponding data are stored in
 subdirectory `resources` of the package directory.
 
 `bundle = @resource_bundle("pictures")` creates a resource bundle, which is bound
-to the current module. 
+to the current module.
 The resources are looked for the resources subdirectory of a package module or, if the
 base module is `Main`, in the current working directory.
 
 The object stored in reousource bundles are not restricted to strings, but may have any Julia type.
-For example, it could make sense to store locale-dependant pictures (containing natuaral language texts) in resource bundles. Also locale dependant information or algorithms are possible.
+For example, it could make sense to store locale-dependent pictures (containing natural language texts) in resource bundles. Also locale dependent information or algorithms are possible.
 
 The actual data of all resource bundles of a package stored in the package directory in an extra subdirectory named `resources` (`resource-dir>`. An individual resource bundle with name `<name>` consists of a collection of files with path names
-`<resource-dir>/<name><intermediate>.jl`. Here `<intermediate>`may be empty or a canonicalized locale tag, whith
-separator characters replaced by `'_'` or `'/'`. That means, all files have the standard `Julia`extension (and they 
-actually contain `Julia`code). The files may be spread in a subdirectory hierarchy according to the structure of the languange tags. 
+`<resource-dir>/<name><intermediate>.[jl|po]`. Here `<intermediate>`may be empty or a canonicalized locale tag, whith separator characters replaced by `'_'` or `'/'`. That means, all files have the standard `Julia`extension (and they actually contain `Julia`code) or a `po`
+extension indicating message resources in PO format. The files may be spread in a subdirectory hierarchy according to the structure of the languange tags.
 
 Fallback strategy following structure of language tags.
 

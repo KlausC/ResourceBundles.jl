@@ -66,7 +66,7 @@ end
 nostring(s::AbstractString) = s
 nostring(::Nothing) = ""
 
-const REG_POSIX = r"(^[[:alpha:]]+)([_-]([[:alpha:]]+))?(\.([[:alnum:]]+))?(@([[:alnum:]]+))?$"
+const REG_POSIX = r"(^[[:alpha:]]+)([_-]([[:alpha:]]+))?(\.([[:alnum:]_-]+))?(@([[:alnum:]]+))?$"
 
 const EXTENSION_TO_SCRIPT = Dict(
         "cyrillic" => "Cyrl",

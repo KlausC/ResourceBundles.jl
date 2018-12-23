@@ -2,7 +2,7 @@
 module LC
 
 export Category, CategorySet
-import Base: show, issubset, |, start, done, next, length
+import Base: show, issubset, |, iterate, length
 
 """
     Locale category.
@@ -75,9 +75,9 @@ function |(a::CategorySet, b::CategorySet)
     _CategorySetImplementation(mab)
 end
 
-start(cat::CategorySet) = cat === ALL ? _MASK_SUM : cat.mask
-done(cat::CategorySet, s) = s == 0
-function next(cat::CategorySet, s)
+iterate(cat::CategorySet) = iterate(cat, cat === ALL ? _MASK_SUM : cat.mask)
+function iterate(cat::CategorySet, s)
+    s == 0 && return nothing
     ix = trailing_zeros(s) + 1
     cat = ALL_CATS[ix]
     cat, s & ~mask(cat)
