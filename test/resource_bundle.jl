@@ -124,16 +124,14 @@ bundlea = @resource_bundle("bundle")
 
 # Test in submodule Main.XXX
 module XXX
-    using ResourceBundles
-    eval(Main.test)
+    using ResourceBundles, Test
     @test @resource_bundle("messages2") === RB_messages2
     @test Main.XXX.RB_messages2 === Main.RB_messages2
     @test @resource_bundle("bundle") === RB_bundle
     @test Main.XXX.RB_bundle !== Main.RB_bundle
     # Test in submodule Main.XXX.YYY
     module YYY
-    using ResourceBundles
-    eval(Main.test)
+    using ResourceBundles, Test
         @test @resource_bundle("bundle") === RB_bundle
         @test Main.XXX.YYY.RB_bundle === Main.XXX.RB_bundle
     end
@@ -142,13 +140,12 @@ end
 @test resource_bundle(ResourceBundles, "messages2") === ResourceBundles.RB_messages2
 @test resource_bundle(ResourceBundles, "bundle") === ResourceBundles.RB_bundle
 
-bundlea = eval(ResourceBundles, :(@resource_bundle("bundle")))
+bundlea = ResourceBundles.eval(:(@resource_bundle("bundle")))
 @test bundlea === ResourceBundles.RB_bundle
 
 # test in submodule ResourceBundles.XXX
-eval(ResourceBundles, :(module XXX
-        using ResourceBundles
-        eval(Main.test)
+ResourceBundles.eval(:(module XXX
+        using ResourceBundles, Test
         
         @test string(@__MODULE__) == "ResourceBundles.XXX" 
         @test @resource_bundle("messages2") === RB_messages2

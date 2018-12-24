@@ -7,13 +7,13 @@ using ResourceBundles
 import ResourceBundles: ROOT, BOTTOM, create_locid
 import ResourceBundles: set_locale!, load_file
 
-cd(Pkg.dir("ResourceBundles"))
+cd(abspath(pathof(ResourceBundles), "..", ".."))
 
 # test if logger contains text in a message; finally with:clear logger.
 function test_log(log::Test.TestLogger, text::AbstractString)
     try
         isempty(text) && return test_log(log)
-        conmess(x::Test.LogRecord) = contains(x.message, text)
+        conmess(x::Test.LogRecord) = occursin(text, x.message)
         any(conmess.(test_log_filter(log)))
     finally
         empty!(log.logs)

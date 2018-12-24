@@ -188,7 +188,7 @@ is_alnumsep(x::AS) = all(c->isascii(c) && ( is_alnum(c) || c in "-_.@" ), x)
 # equality
 function ==(x::LocaleId, y::LocaleId)
     x === y && return true
-    flat(x.language) == flat(y.language) &&
+    x.language == y.language &&
     x.script == y.script &&
     x.region == y.region &&
     x.variants == y.variants &&
@@ -280,14 +280,17 @@ set_locale!(loc::LocaleId, cats::CategorySet = LC.ALL) = set_locale!(locale(), l
 
 function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
     cloc = CLocales.newlocale(cats, loc, gloc.cloc)
+    cld = gloc.locids
     if cloc != Ptr{Nothing}(0)
-        cld = gloc.locids
         for cat in cats
             cld[cat.id+1] = loc == DEFAULT ? default_locale(cat) : loc
         end
         gloc.cloc = cloc
         true
     else
+        if LC.MESSAGES in cats
+            cld[LC.MESSAGES.id+1] = loc
+        end
         false
     end
 end
@@ -303,7 +306,7 @@ LC_ALL  overides all other settings
 
 * may be one of
 MESSAGES    message catalogs
-COLLATE     ordering of strings
+
 NUMERIC     number formats
 MONETARY    format of monetary values
 TIME        date/time formats

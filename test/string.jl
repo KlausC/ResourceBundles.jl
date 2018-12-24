@@ -77,14 +77,14 @@ with_logger(log) do
     load_file(joinpath("resources", "messages.pox"))
 end
 mess = isempty(log.logs) ? "" : log.logs[1].message
-@test contains(mess, "invalid extension of file name")
+@test occursin("invalid extension of file name", mess)
 
 empty!(log.logs)
 with_logger(log) do
     load_file(joinpath("resources", "messages_tv.po"))
 end
 mess = isempty(log.logs) ? "" : log.logs[1].message
-@test contains(mess, "unexpected msgid")
+@test occursin("unexpected msgid", mess)
 
 @test string_to_key("simple") == "simple"
 @test string_to_key(raw"with $v1 and $(expr+2)") == raw"with $(1) and $(2)"

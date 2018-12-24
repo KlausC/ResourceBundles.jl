@@ -421,7 +421,7 @@ function define_resource_variable(mod::Module, varname::Symbol, bundlename::Abst
         if is_module_specific(mod, path)
             mod.eval(:(const $varname = ResourceBundle($mod, $bundlename)))
         elseif isabspath(path)
-            parent = module_parent(mod)
+            parent = parentmodule(mod)
             prev = define_resource_variable(parent, varname, bundlename)
             mod.eval(:(const $varname = $parent.$varname))
         else
