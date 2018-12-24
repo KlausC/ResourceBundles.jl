@@ -26,28 +26,28 @@ Main features:
   * includes mechanism for multiple plural forms for translations
   * fall back to text provided as key within the source text
   * Define global default Resource bundle for each module
+  * Support features of Posix `gettext`
 
 * NumberFormat and DateTimeFormat (LC_NUMERIC, LC_TIME) (TODO)
-  * If an object is formatted in the interpolation context of a translated string, instead 
-  of the usual `show` method, a locale sensitive replacement is called.
+  * If an object is formatted in the interpolation context of a translated string, instead of the usual `show` method, a locale sensitive replacement is called.
   * those methods default to the standard methods, if not explicitly defined.
   * For real numbers and date or time objects, methods can be provided as locale dependent resources.
 
 * String comparison (LC_COLLATE) (TODO)
-  * Strings containing natural language texts are sorted locle-sensitive according to
+  * Strings containing natural language texts are sorted locale-sensitive according to
   "Unicode Collation Algorithm". Implementation makes use of `ICU` if possible. In order to treat a string as natural text, it is wrapped by a `NlsString` object.
 
 * Character Classes (LC_CTYPE) (TODO)
   * Character classification (`isdigit`, `isspace` ...) and character or string transformations
-  (`uppercasea`, `titlecase`, ...) are performed locale-sensitive for wrapped types.
+  (`uppercase`, `titlecase`, ...) are performed locale-sensitive for wrapped types.
 
 #### Installation
 
 ```
 # assuming a unix shell
-cd .julia/v0.7
+cd ~/.julia/dev
 git clone http://github.com/KlausC/ResourceBundles.jl ResourceBundles
-[Pkg.add("ResourceBundles")]
+# Pkg.add("ResourceBundles")
 
 ```
 
@@ -57,16 +57,25 @@ git clone http://github.com/KlausC/ResourceBundles.jl ResourceBundles
 module MyModule
 using ResourceBundles
 
-set_locale!(:MESSAGES, Locale("de"))
+# show current locale (inherited from env LC_ALL, LC_MESSAGES, LANG)
+locale_id(LC.MESSAGES)
 
+# change locale for messages programmatically:
+set_locale!(LocaleId("de"), LC.MESSAGES)
+
+# use string translation feature
 println(tr"$(context=test)original text")
 println(tr"$n dogs have $(4n) legs")
 for lines in [1,2,3]
     println(tr"$errnum lines of code")
 end
+
+# access the posix locale definitions
+ResourceBundles.CLocales.nl_langinfo(ResourceBundles.CLocales.CURRENCY_SYMBOL)
+
 end module
 ```
-sample configuration files in directory `.julia/v0.7/MyModule/resources`
+sample configuration files in directory `pathof(MyModule)/../../resources`
 
 ```
 cat messages_de.po
@@ -147,7 +156,7 @@ Each resource bundle is bound to a package. The corresponding data are stored in
 subdirectory `resources` of the package directory.
 
 `bundle = @resource_bundle("pictures")` creates a resource bundle, which is bound
-to the current module.
+to the current module. The resource is populated by the content found in the resource files, which are associated with the current module.
 The resources are looked for the resources subdirectory of a package module or, if the
 base module is `Main`, in the current working directory.
 
@@ -155,7 +164,10 @@ The object stored in reousource bundles are not restricted to strings, but may h
 For example, it could make sense to store locale-dependent pictures (containing natural language texts) in resource bundles. Also locale dependent information or algorithms are possible.
 
 The actual data of all resource bundles of a package stored in the package directory in an extra subdirectory named `resources` (`resource-dir>`. An individual resource bundle with name `<name>` consists of a collection of files with path names
-`<resource-dir>/<name><intermediate>.[jl|po]`. Here `<intermediate>`may be empty or a canonicalized locale tag, whith separator characters replaced by `'_'` or `'/'`. That means, all files have the standard `Julia`extension (and they actually contain `Julia`code) or a `po`
+
+`<resource-dir>/<name><intermediate>.[jl|po|mo]`.
+
+ Here `<intermediate>`may be empty or a canonicalized locale tag, whith separator characters replaced by `'_'` or `'/'`. That means, all files have the standard `Julia`extension (and they actually contain `Julia`code) or a `po`
 extension indicating message resources in PO format. The files may be spread in a subdirectory hierarchy according to the structure of the languange tags.
 
 Fallback strategy following structure of language tags.
@@ -163,15 +175,16 @@ Fallback strategy following structure of language tags.
 
 ##### String Translations
 
-String translations make use of a current locale `(get_locale(:MESSAGES))` and a standard resource bundle `@__MODULE__.RB_messages`.
+String translations make use of a current locale `(locale_id(LC.MESSAGES))` and a standard resource bundle `(@__MODULE__).RB_messages`, which is created on demand.
 
 The macro `tr_str` allows the user to write texts in a standard locale and it is translated
 at runtime to a corresponding text in the current locale.
 It has the following features.
 
- * translate plan text
+ * translate plain text
  * support string interpolation, allowing re-ordering of variables
  * support multiple plural forms for exactly one interpolation variable
+ * support context specifiers
 
 The interpolation expressions are embedded in the text of the string-macro `tr` in the usual
 form, e.g. `tr" ...  $var ... $(expr) ..."`.
@@ -184,13 +197,30 @@ which of several plural options has to be selected.
 For this purpose the translation text database defines a "plural-formula", which maps the
 integer expression `n` to a zero-based index. This index peeks the proper translation from a
 vector of strings.
-Some typical formulas:
-Chinese: `0`
-English: `n > 1 ? 1 : 0`
-French:  `n == 1 ? 0 : 1`
-Russian: `n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2`
+Some typical formulas in the PO-file format:
 
-The macro includes the functionality of the gnu library calls `gettext`and `ngettext`.
-The database supports the file format, defined by "GNU-gettext".
-See (https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files)
+    msgid ""
+    msgstr ""
+    "Plural-Forms: nplurals=1; plural=0;\n"                 # Chinese
+    "Plural-Forms: nplurals=1; plural=n > 1 ? 1 : 0;\n"     # English (default)
+    "Plural-Forms: nplurals=1; plural=n == 1 ? 0 : 1;\n"    # French
+    "Plural-Forms: nplurals=1; plural=n%10==1&&n%100!=11 ? 0 : n%10>=2&&n%10<=4&&(n%100<10||n%100>=20) ? 1 : 2;\n"
+      # Russian
+
+For details see: [PO-Files](https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files).
+
+Message contexts are included in the tr string like `tr"§mood§blue"` or `tr"§color§blue"`. In the PO file it is defined for example like:
+
+    msgctx "mood"
+    msgid "blue"
+    msgstr "melancholisch"
+
+    msgctx "color"
+    msgid "blue"
+    msgstr "blau"
+
+The `tr_str` macro includes the functionality of the gnu library calls `gettext`and `ngettext`.
+The database supports the file formats and infrastructure defined by [gettext](https://www.gnu.org/software/gettext/manual). Also binary files with extension `.mo` are be processed, which can be compiled from `.po` files by the gettext-utility [`msgfmt`](https://www.gnu.org/software/gettext/manual/gettext.html#msgfmt-Invocation).
+
+
 
