@@ -9,7 +9,7 @@ import .CLocales: newlocale_c, strcoll_c, nl_langinfo_c
 const P0 = Ptr{Nothing}(0)
 
 @test newlocale_c(LC._MASK_ALL, "invalidxxx", P0)  == P0
-@test newlocale_c(LC._MASK_ALL, "en_US", P0)  != P0
+@test newlocale_c(LC._MASK_ALL, "en_US.utf8", P0)  != P0
 
 test_locale_C = newlocale_c(LC._MASK_ALL, "C", P0)
 test_locale_ca = newlocale_c(LC._MASK_ALL, "en_US.utf8", P0)
