@@ -8,6 +8,8 @@ import .CLocales: newlocale_c, strcoll_c, nl_langinfo_c
 
 const P0 = Ptr{Nothing}(0)
 
+if Sys.isunix()
+
 @test newlocale_c(LC._MASK_ALL, "invalidxxx", P0)  == P0
 @test newlocale_c(LC._MASK_ALL, "en_US.utf8", P0)  != P0
 
@@ -39,4 +41,5 @@ end
 
 @test freelocale(test_locale_ca) == nothing
 freelocale(test_locale_C)
+end # isunix
 #################################
