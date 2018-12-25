@@ -9,11 +9,13 @@ import .CLocales: newlocale_c, strcoll_c, nl_langinfo_c
 const P0 = Ptr{Nothing}(0)
 
 @test newlocale_c(LC._MASK_ALL, "invalidxxx", P0)  == P0
-@test newlocale_c(LC._MASK_ALL, "fr_FR.utf8", P0)  != P0
+@test newlocale_c(LC._MASK_ALL, "en_CA", P0)  != P0
 
 test_locale_C = newlocale_c(LC._MASK_ALL, "C", P0)
-test_locale_fr = newlocale_c(LC._MASK_ALL, "fr_FR.utf8", P0)
-@test duplocale(test_locale_fr) != P0
+test_locale_ca = newlocale_c(LC._MASK_ALL, "en_CA.utf8", P0)
+@test duplocale(test_locale_ca) != P0
+
+@test unsafe_string(nl_langinfo_c(Cint(0xffff), test_locale_ca)) == "en_CA.utf8"
 
 COLL_TESTS_C = [
     ( "a", "b", -1 ),
@@ -32,11 +34,9 @@ COLL_TESTS_FR = [
 end
 
 @testset "string comparisons '$a' ~ '$b'" for (a, b, r) in COLL_TESTS_FR
-    @test sign(strcoll_c(a, b, test_locale_fr)) == r
+    @test sign(strcoll_c(a, b, test_locale_ca)) == r
 end
 
-@test unsafe_string(nl_langinfo_c(Cint(0xffff), test_locale_fr)) == "fr_FR.utf8"
-
-@test freelocale(test_locale_fr) == nothing
+@test freelocale(test_locale_ca) == nothing
 freelocale(test_locale_C)
 #################################

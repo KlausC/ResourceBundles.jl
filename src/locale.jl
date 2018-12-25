@@ -59,7 +59,7 @@ function check_language(x::AS, extlang::Vector{String})
     len = length(extlang)
     if length(x) <= 3
         len <= 1 || throw(ArgumentError("only one language extension allowed '$x$SEP2$(join(extlang, SEP2))'")) 
-        if length(extlang) >= 1
+        if len >= 1
             x = extlang[1]
         end
         if length(x) == 3
@@ -227,6 +227,25 @@ issubext(x, y::Nothing) = true
 Base.isless(x::LocaleId, y::LocaleId) = issubset(x, y) || (!issubset(y,x) && islexless(x, y))
 islexless(x::LocaleId, y::LocaleId) = string(x) < string(y)
 
+"""
+    less_specific(loc::LocaleId)
+Give the next less specific locale id. If loc = ROOT, return ROOT.
+"""
+function less_specific(loc::LocaleId)
+    loc == ROOT && return ROOT
+    if loc.extensions != nothing && !isempty(loc.extensions) > 0
+        LocaleId(loc.language, loc.script, loc.region, loc.variants, nothing)
+    elseif length(loc.variants) != 0
+        LocaleId(loc.language, loc.script, loc.region, Symbol[], nothing)
+    elseif loc.region != S0
+        LocaleId(loc.language, loc.script, S0, Symbol[], nothing)
+    elseif loc.script != S0
+        LocaleId(loc.language, S0, S0, Symbol[], nothing)
+    else
+        ROOT
+    end
+end
+
 function Base.show(io2::IO, x::LocaleId)
     ES = Symbol("")
     sep = ""
@@ -279,20 +298,22 @@ Throw exception if category is not :ALL or one of the supported categories of `l
 set_locale!(loc::LocaleId, cats::CategorySet = LC.ALL) = set_locale!(locale(), loc, cats)
 
 function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
-    cloc = CLocales.newlocale(cats, loc, gloc.cloc)
     cld = gloc.locids
-    if cloc != Ptr{Nothing}(0)
-        for cat in cats
-            cld[cat.id+1] = loc == DEFAULT ? default_locale(cat) : loc
-        end
+    cloc = _newlocale(cats, loc, gloc.cloc)
+    if cloc != CLocales.CL0
         gloc.cloc = cloc
-        true
-    else
-        if LC.MESSAGES in cats
-            cld[LC.MESSAGES.id+1] = loc
+        for cat in cats
+            lloc = loc == DEFAULT && cat != LC.MESSAGES ? default_locale(cat) : loc
+            cld[cat.id+1] = lloc
         end
-        false
     end
+    cloc != CLocales.CL0
+end
+
+function _newlocale(cats::CategorySet, loc::LocaleId, base::CLocaleType)
+    cloc = CLocales.newlocale(cats, loc, base)
+    (cloc != CLocales.CL0 || loc == ResourceBundles.ROOT) && return cloc
+    _newlocale(cats, less_specific(loc), base)
 end
 
 """

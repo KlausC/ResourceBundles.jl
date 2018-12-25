@@ -13,6 +13,10 @@ function freelocale(ploc::CLocaleType)
     ccall(:freelocale, Nothing, (CLocaleType,), ploc)
 end
 
+function uselocale(newloc::CLocaleType)
+    ccall(:uselocale, CLocaleType, (CLocaleType,), newloc)
+end
+
 function strcoll_c(s1::AbstractString, s2::AbstractString, ploc::CLocaleType)
     res = 0
     if ploc == CL0
