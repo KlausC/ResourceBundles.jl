@@ -303,7 +303,7 @@ function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
     if cloc != CLocales.CL0
         gloc.cloc = cloc
         for cat in cats
-            lloc = loc == DEFAULT && cat != LC.MESSAGES ? default_locale(cat) : loc
+            lloc = loc == DEFAULT ? default_locale(cat) : loc
             cld[cat.id+1] = lloc
         end
     end

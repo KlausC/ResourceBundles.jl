@@ -47,33 +47,38 @@ Main features:
 # assuming a unix shell
 cd ~/.julia/dev
 git clone http://github.com/KlausC/ResourceBundles.jl ResourceBundles
-# Pkg.add("ResourceBundles")
+]add ResourceBundles
 
 ```
 
 #### Usage
 
 ```
-module MyModule
 using ResourceBundles
 
+# The following code is to make the test resources of ResourceBundles itself available
+# to the Main module. Typically the resources are accessible within their module.
+rdir = abspath(pathof(ResourceBundles), "..", "..", "resources")
+;ln -s $rdir .
+
 # show current locale (inherited from env LC_ALL, LC_MESSAGES, LANG)
-locale_id(LC.MESSAGES)
+locale()
 
 # change locale for messages programmatically:
 set_locale!(LocaleId("de"), LC.MESSAGES)
 
 # use string translation feature
-println(tr"$(context=test)original text")
-println(tr"$n dogs have $(4n) legs")
+println(tr"original text")
+for n = (2,3)
+    println(tr"$n dogs have $(4n) legs")
+end
 for lines in [1,2,3]
-    println(tr"$errnum lines of code")
+    println(tr"$lines lines of code")
 end
 
 # access the posix locale definitions
 ResourceBundles.CLocales.nl_langinfo(ResourceBundles.CLocales.CURRENCY_SYMBOL)
 
-end module
 ```
 sample configuration files in directory `pathof(MyModule)/../../resources`
 
@@ -94,13 +99,13 @@ msgstr "Originaltext"
 
 #: main.jl:7
 msgid "$(1) dogs have $(2) legs"
-msgstr $(2) Beine gehören zu $(1) Hunden"
+msgstr "$(2) Beine gehören zu $(1) Hunden"
 
 #: main.jl:9
 msgid "$(1) lines of code"
 msgstr[0] "eine Zeile"
 msgstr[1] "Zeilenpaar"
-msgstr[2] "$(1) Zeilen" 
+msgstr[2] "$(1) Zeilen"
 ```
 or alternatively, with same effect
 ```

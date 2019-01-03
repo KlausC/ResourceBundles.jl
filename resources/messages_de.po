@@ -1,0 +1,23 @@
+#
+# Comments
+#
+# Empty msgid containing options - only Plural-Forms is used
+msgid ""
+msgstr "other options\n"
+       "Plural-Forms: nplurals = 3; plural = n == 1 ? 0 : n == 2 ? 1 : 3\n"
+       "other options:  \n"
+
+#: main.jl:6 (used as a comment)
+msgid "original text"
+msgstr "Originaltext"
+
+#: main.jl:7
+msgid "$(1) dogs have $(2) legs"
+msgstr "$(2) Beine gehören zu $(1) Hunden"
+
+#: main.jl:9
+msgid "$(1) lines of code"
+msgstr[0] "eine Zeile"
+msgstr[1] "Zeilenpaar"
+msgstr[2] "$(1) Zeilen"
+
