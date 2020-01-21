@@ -227,5 +227,8 @@ Message contexts are included in the tr string like `tr"§mood§blue"` or `tr"§
 The `tr_str` macro includes the functionality of the gnu library calls `gettext`and `ngettext`.
 The database supports the file formats and infrastructure defined by [gettext](https://www.gnu.org/software/gettext/manual). Also binary files with extension `.mo` are be processed, which can be compiled from `.po` files by the gettext-utility [`msgfmt`](https://www.gnu.org/software/gettext/manual/gettext.html#msgfmt-Invocation).
 
+#### Limitations
 
+The items labeled with `TODO` are not supported.
+Windows is not supported (as it does not provide the `newlocale` XOPEN stdlib calls)
 
