@@ -35,7 +35,7 @@ if Sys.isunix() && get(Base.ENV, "NO_CLOCALE", "") != "1"
         ccall(:nl_langinfo_l, Ptr{UInt8}, (Cint, CLocaleType), nlitem, ploc)
     end
 
-else # for the non-unix case provide dummy methods
+else # for the non case provide dummy methods
 
     newlocale_c(mask::Cint, clocale::AbstractString, base::CLocaleType) = CL0
     duplocale(ploc::CLocaleType) = CL0
