@@ -156,12 +156,13 @@ ResourceBundles.eval(:(module XXX
 )
 
 lpa = ResourceBundles.locale_pattern
+sep = Base.Filesystem.path_separator
 
 @test lpa(".jl") == LocaleId("C")
 @test lpa("-en.jl") == LocaleId("en")
 @test lpa("_en.jl") == LocaleId("en")
-@test lpa("/en.jl") == LocaleId("en")
-@test lpa("-en/.jl") == LocaleId("en")
-@test lpa("/en/.jl") == LocaleId("en")
-@test lpa("/en./jl") == nothing
+@test lpa(sep*"en.jl") == LocaleId("en")
+@test lpa("-en"*sep*".jl") == LocaleId("en")
+@test lpa(sep*"en"*sep*".jl") == LocaleId("en")
+@test lpa(sep*"en."*sep*"jl") == nothing
 
