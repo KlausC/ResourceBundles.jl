@@ -300,14 +300,14 @@ set_locale!(loc::LocaleId, cats::CategorySet = LC.ALL) = set_locale!(locale(), l
 function set_locale!(gloc::Locale, loc::LocaleId, cats::CategorySet = LC.ALL)
     cld = gloc.locids
     cloc = _newlocale(cats, loc, gloc.cloc)
-    if cloc != CLocales.CL0
+    if cloc != CLocales.CL0 || gloc.cloc == CLocales.CL0
         gloc.cloc = cloc
         for cat in cats
             lloc = loc == DEFAULT ? default_locale(cat) : loc
             cld[cat.id+1] = lloc
         end
     end
-    cloc != CLocales.CL0
+    cloc != CLocales.CL0 || gloc.cloc == CLocales.CL0
 end
 
 function _newlocale(cats::CategorySet, loc::LocaleId, base::CLocaleType)

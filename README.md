@@ -3,16 +3,16 @@
 [![Build Status](https://travis-ci.org/KlausC/ResourceBundles.jl.svg?branch=master)](https://travis-ci.org/KlausC/ResourceBundles.jl)
 [![codecov.io](http://codecov.io/github/KlausC/ResourceBundles.jl/coverage.svg?branch=master)](http://codecov.io/github/KlausC/ResourceBundles.jl?branch=master)
 
-### ResourceBundles is a package to support Internationalization (I18n).
+## ResourceBundles is a package to support Internationalization (I18n).
 Main features:
 
-* Locale
+### Locale
   * create Locale from string formed according to standards Unicode Locale Identifier (BCP47 (tags for Identifying languages), RFC5646, RFC4647)
   * set/get default locale for different purposes
   * startup-locale derived form environment settings (LANG, LC_MESSAGES, ..., LC_ALL)
   * Locale patterns imply a canonical partial ordering by set inclusion
 
-* ResourceBundle
+### ResourceBundle
   * Database of objects (e.g. text strings), identified by locale and individual text key
   * select most specific available object according to canonical ordering of locales
   * detect ambiguities for individual keys
@@ -20,7 +20,7 @@ Main features:
   * database uses files witten in Julia source code
   * database files containing translated texts using gettext-PO format is supported
 
-* Message text localization (LC_MESSAGES)
+#### Message text localization (LC_MESSAGES)
   * a string macro providing translation of standard language according to default locale
   * support string interpolation and control ordering of interpolated substrings
   * includes mechanism for multiple plural forms for translations
@@ -28,20 +28,20 @@ Main features:
   * Define global default Resource bundle for each module
   * Support features of Posix `gettext`
 
-* NumberFormat and DateTimeFormat (LC_NUMERIC, LC_TIME) (TODO)
+#### NumberFormat and DateTimeFormat (LC_NUMERIC, LC_TIME) (TODO)
   * If an object is formatted in the interpolation context of a translated string, instead of the usual `show` method, a locale sensitive replacement is called.
   * those methods default to the standard methods, if not explicitly defined.
   * For real numbers and date or time objects, methods can be provided as locale dependent resources.
 
-* String comparison (LC_COLLATE) (TODO)
+#### String comparison (LC_COLLATE) (TODO)
   * Strings containing natural language texts are sorted locale-sensitive according to
   "Unicode Collation Algorithm". Implementation makes use of `ICU` if possible. In order to treat a string as natural text, it is wrapped by a `NlsString` object.
 
-* Character Classes (LC_CTYPE) (TODO)
+#### Character Classes (LC_CTYPE) (TODO)
   * Character classification (`isdigit`, `isspace` ...) and character or string transformations
   (`uppercase`, `titlecase`, ...) are performed locale-sensitive for wrapped types.
 
-#### Installation
+### Installation
 
 ```
 # assuming a unix shell
@@ -51,7 +51,7 @@ git clone http://github.com/KlausC/ResourceBundles.jl ResourceBundles
 
 ```
 
-#### Usage
+### Usage
 
 ```
 using ResourceBundles
@@ -127,32 +127,65 @@ ein Zeilenpaar
 3 Zeilen
 ```
 
-#### Implementation
+## User Guide
 
-##### Locale Identifiers and Locales
+#### Locale Identifiers and Locales
 
 Locale Identifiers are converted from Strings, which are formatted according to Unicode Locale Identifier.
-Examples: "en", "en_Latn", "en_us", "en_Latn_GB_london", "en_US_x_private".
+Examples: "en", "en_Latn", "en_US", "en_Latn_GB_london", "en_US_x_private".
+
+
 Additionally the syntax for Posix environment variables `LANG` and `LC_...` are
 supported.
 Examples: "C", "en_US", "en_us.utf8", "en_US@posext".
-All those formats are converted to a canonical form and stored in objects of type `Locale`.
+All those formats are converted to a canonical form and stored in objects of type `LocaleID`: `LocaleID("en_US")`.
 The `_` may be replaced by `-` in input.
 
-`LocaleId` implements the `equals` and the `issubset` (`⊆`) relations. 
+`LocaleId` implements the `equals` and the `issubset` (`⊆`) relations.
 Here `LocaleId("en_US") ⊆ LocaleId("en") ⊆ LocaleId("C") == LocaleId("")`.
 
 The `Locale` is a set of locale-properties for several categories. The categories are taken
 from the GNU implementation. Each locale-property is identified by a `LocaleId`.
 
-Each task owns a task specific current locale.
-These variables are accessed with get/set methods.
-For example the locale `get_locale(:MESSAGES)` is used as the default locale for message
+Each category corresponds to one of the `LC_` environment variables and there is a related
+constant in module 'LC'. Here is the complete list:
+
+    category          | remark
+    -------------------------------
+    CTYPE             | character classifications (letter, digit, ...)
+    NUMERIC           | number formating (decimal separator, ...)
+    TIME              | time and date formats
+    COLLATE           | text comparison
+    MONETARY          | currency symbol
+    MESSAGES          | translation of message texts
+    ALL               | not a category - used to override all other settings
+    PAPER             | paper formats
+    NAME              | person names
+    ADDRESS           | address formating
+    TELEPHONE         | formating of phone numbers
+    MEASUREMENT       | measurement system (1 for metric, 2 for imperial)
+    IDENTIFICATION    | name of the locale identifier
+
+For all of those terms there is an environment variable `"LC_category"` and a Julia constant `LC.category`. The categories up to `ALL` are defined in POSIX(), which the others are GNU extensions.
+The special variable `"LC_ALL"` overrides all other variables `"LC_category"` if set.
+The additional environment variable `"LANG"` is used as a fallback, if neither `"LC_category"` nor `"LC_ALL"` is set.
+
+Each task owns a task specific current locale. It is obtained by `locale()`.
+For each category the valid locale identifier is accessed by `locale_id(LC.category)`.
+For example the locale `locale_id(LC.MESSAGES)` is used as the default locale for message
 text look-up in the current task.
+The locale-ids of the current locale may be changed by `set_locale!(localeid, category)`.
+For example `set_locale!(LocaleID("de_DE"), LC.MESSAGES)` modifies the current locale to
+use German message translations.
 
-All locale categories except for :MESSAGES are implemented by the GNU implementation, which contains the shared library glibc, the tool, a set of predefined locale properties, and a tool `locales`, which delivers a list of all installed locale identifiers.
+All locale categories except for `LC.MESSAGES` are implemented by the GNU installation, which contains the shared library glibc, a set of predefined locale properties, and a tool `locales`, which delivers a list of all locale identifiers installed on the system.
+In Julia, the values of all locale dependent variable of those categories may be obtained
+like `ResourceBundles.CLocales.nl_langinfo.(ResourceBundles.CLocales.DAY.(1:7))`
+or `ResourceBundles.CLocales.nl_langinfo(ResourceBundles.CLocales.IDENTIFICATION_TITLE)`.
 
-##### Resource Bundles
+These are only available on GNU based systems (including Linux and OSX).
+
+#### Resource Bundles
 
 A resource bundle is an association of string values with arbitrary objects, where the
 actual mapping depends on a locale.
@@ -178,7 +211,7 @@ extension indicating message resources in PO format. The files may be spread in 
 Fallback strategy following structure of language tags.
 
 
-##### String Translations
+#### String Translations
 
 String translations make use of a current locale `(locale_id(LC.MESSAGES))` and a standard resource bundle `(@__MODULE__).RB_messages`, which is created on demand.
 
@@ -229,6 +262,6 @@ The database supports the file formats and infrastructure defined by [gettext](h
 
 #### Limitations
 
-The items labeled with `TODO` are not supported.
-Windows is not supported (as it does not provide the `newlocale` XOPEN stdlib calls)
+The items labeled with `TODO` are not yet supported.
+Windows is only supported for the LC_MESSAGES mechanisms, not the other locale categories.
 
