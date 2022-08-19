@@ -10,14 +10,16 @@ mutable struct TranslationItem
 end
 
 function init_ti!(ti::TranslationItem)
-    ti.id = ""; ti.plural = ""; ti.context = ""
+    ti.id = ""
+    ti.plural = ""
+    ti.context = ""
     empty!(ti.strings)
 end
 
 """
     read_po_file'('f::AbstractString')'
 
-Read a file, which contains text data according to the PO format of gettext 
+Read a file, which contains text data according to the PO format of gettext
 ref: //https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html
 Format is strictly line separated.
 A line staring with '#' is a comment line and ignored.
@@ -31,8 +33,8 @@ two separate key-value pairs are generated, with identical '('typical array')' v
 """
 function read_po_file(file::Union{AbstractString,IO})
 
-    in_sequence = false;
-    in_keyword = false;
+    in_sequence = false
+    in_keyword = false
     dict = Vector{Pair{String,Union{String,Vector{String}}}}()
     buffer = IOBuffer()
     keyword = ""
@@ -68,28 +70,35 @@ function read_po_file(file::Union{AbstractString,IO})
         in_keyword = false
         process_keyword(keyword, index, line)
     end
-    
-    function process_keyword(key::AbstractString, index::Int, text::AbstractString)
+
+    function process_keyword(
+        key::AbstractString,
+        index::Int,
+        text::AbstractString,
+    )
         index == -1 || key == "msgstr" || error("not allowed $key[$index]")
         if key == "msgid"
             in_ti == 3 && process_translation_item(ti)
             in_ti <= 1 || error("unexpected $key '$text'")
             in_ti = 2
-            isempty(ti.id) || error("several msgids in line ('$ti.id', '$text')") 
+            isempty(ti.id) ||
+            error("several msgids in line ('$ti.id', '$text')")
             ti.id = text
         elseif key == "msgstr"
             in_ti != 0 || error("unexpected $key '$text'")
             in_ti = 3
-            ti.strings[max(index,0)] = text
+            ti.strings[max(index, 0)] = text
         elseif key == "msgid_plural"
             in_ti == 2 || error("unexpected $key '$text'")
-            isempty(ti.plural) || error("several msgid_plural in line ('$ti.plural', '$text')") 
+            isempty(ti.plural) ||
+            error("several msgid_plural in line ('$ti.plural', '$text')")
             ti.plural = text
         elseif key == "msgctxt"
             in_ti == 3 && process_translation_item(ti)
             in_ti == 0 || error("unexpected $key '$text'")
             in_ti = 1
-            isempty(ti.context) || error("several msgctx in line ('$ti.context', '$text')") 
+            isempty(ti.context) ||
+            error("several msgctx in line ('$ti.context', '$text')")
             ti.context = text
         end
     end
@@ -101,10 +110,10 @@ function read_po_file(file::Union{AbstractString,IO})
     end
 
     for line in eachline(file)
-        if ( m = match(REG_KEYWORD, line) ) != nothing
+        if (m = match(REG_KEYWORD, line)) != nothing
             in_sequence && end_sequence()
             begin_keyword(m.captures[1], m.captures[3], m.captures[4])
-        elseif ( m = match(REG_STRING, line) ) != nothing
+        elseif (m = match(REG_STRING, line)) != nothing
             continue_sequence(m.captures[1])
         end
     end
@@ -135,23 +144,26 @@ function read_mo_file(f::AbstractString)
     d = reinterpret(UInt32, data[1:28])
     le_machine = ENDIAN_BOM == 0x04030201
     le_file = d[1] == MAGIC
-    le_file || ntoh(d[1]) == MAGIC || error("wrong magic number - no MO-file format")
+    le_file ||
+    ntoh(d[1]) == MAGIC ||
+    error("wrong magic number - no MO-file format")
     conv = le_file ? ltoh : ntoh
-    le_machine != le_file && ( d = conv.(d) )
+    le_machine != le_file && (d = conv.(d))
     magic, rev, n, origp, tranp, hsize, hashp = d[1:7]
     revma, revmi = rev >> 16, rev & 0xffff
-    origp, tranp, hashp = origp÷4, tranp÷4, hashp÷4
-    revma == 0 || error("revision id ($revma,$revmi) in MO-file - only supported: (0, x)")
-    datal >= (tranp+2n)*4 || error("file too short - no MO file format")
+    origp, tranp, hashp = origp ÷ 4, tranp ÷ 4, hashp ÷ 4
+    revma == 0 ||
+    error("revision id ($revma,$revmi) in MO-file - only supported: (0, x)")
+    datal >= (tranp + 2n) * 4 || error("file too short - no MO file format")
     d = reinterpret(Int32, data[5:(tranp+2n)*4])
-    le_machine != le_file && ( d = conv.(d) )
+    le_machine != le_file && (d = conv.(d))
     for i = 0:2:2n-1
         leno = d[origp+i]
         ptro = d[origp+i+1]
         lent = d[tranp+i]
         ptrt = d[tranp+i+1]
-        stro = String(data[ptro+1:ptro+leno])  
-        strt = String(data[ptrt+1:ptrt+lent])  
+        stro = String(data[ptro+1:ptro+leno])
+        strt = String(data[ptrt+1:ptrt+lent])
         ix = firstnn(findfirst(isequal(EOT), stro), 0)
         if ix > 0
             ti.context = stro[1:prevind(stro, ix)]
@@ -177,7 +189,7 @@ firstnn(a::Any, b::Any...) = a
 
 # add translation item to output vector
 function add_translation_item!(dict::Vector, ti::TranslationItem)
-    val = map(p->p.second, sort(collect(ti.strings)))
+    val = map(p -> p.second, sort(collect(ti.strings)))
     if length(val) == 1 && isempty(ti.plural)
         val = val[1]
     end
@@ -188,7 +200,8 @@ function add_translation_item!(dict::Vector, ti::TranslationItem)
 end
 
 # Format strings with and without context information
-key(ctx, id) = isempty(id) || isempty(ctx) ? id : string(SCONTEXT, ctx, SCONTEXT, id)
+key(ctx, id) =
+    isempty(id) || isempty(ctx) ? id : string(SCONTEXT, ctx, SCONTEXT, id)
 skey(ti::TranslationItem) = key(ti.context, ti.id)
 pkey(ti::TranslationItem) = key(ti.context, ti.plural)
 
@@ -200,7 +213,7 @@ Extract plural data (nplurals and function plural(n)) from string.
 function read_header(str::AbstractString)
     io = IOBuffer(str)
     for line in eachline(io)
-        if ( m = match(REG_PLURAL, line) ) != nothing
+        if (m = match(REG_PLURAL, line)) != nothing
             return translate_plural_data(m.captures[1])
         end
     end
@@ -209,7 +222,8 @@ end
 
 module Sandbox end
 # clip output of eval(ex(n)) to interval [0, m)
-create_plural(ex::Expr, m) = n -> max(min(Base.invokelatest(Sandbox.eval(ex), n), m-1), 0)
+create_plural(ex::Expr, m) =
+    n -> max(min(Base.invokelatest(Sandbox.eval(ex), n), m - 1), 0)
 
 # avoid the following error when calling f by invokelatest:
 # "MethodError: no method matching (::getfield(ResourceBundles, Symbol("...")))(::Int64)
@@ -230,7 +244,7 @@ function translate_plural_data(str::AbstractString)
     plural = n -> n != 0
     str = replace(str, ':' => " : ") # surround : by blanks
     str = replace(str, '?' => " ? ") # surround ? by blanks
-    str = replace(str, "/" => "÷") # use Julia integer division for / 
+    str = replace(str, "/" => "÷") # use Julia integer division for /
     top = Meta.parse(str)
     isa(top, Expr) || return nplurals, plural
     for a in top.args
@@ -245,7 +259,7 @@ function translate_plural_data(str::AbstractString)
             end
         end
     end
-    nplurals, plural 
+    nplurals, plural
 end
 
 const REG_KEYWORD = r"""^\s*([a-zA-Z_]+)(\[(\d+)\])?\s+"(.*)"\s*$"""
@@ -253,4 +267,3 @@ const REG_STRING = r"""^\s*"(.*)"\s*$"""
 const REG_COMMENT = r"""^\s*#"""
 
 const REG_PLURAL = r"""^\s*Plural-Forms:(.*)$"""
-

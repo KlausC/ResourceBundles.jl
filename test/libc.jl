@@ -8,38 +8,33 @@ import .CLocales: newlocale_c, strcoll_c, nl_langinfo_c
 
 const P0 = Ptr{Nothing}(0)
 
-if Sys.islinux() && get(Base.ENV, "NO_CLOCALE", "") != "1"
+@test newlocale_c(LC._MASK_ALL, "invalidxxx", P0) == P0
 
-@test newlocale_c(LC._MASK_ALL, "invalidxxx", P0)  == P0
-@test newlocale_c(LC._MASK_ALL, "en_US.utf8", P0)  != P0
-
-test_locale_C = newlocale_c(LC._MASK_ALL, "C", P0)
-test_locale_ca = newlocale_c(LC._MASK_ALL, "en_US.utf8", P0)
-@test duplocale(test_locale_ca) != P0
-
-@test unsafe_string(nl_langinfo_c(Cint(0xffff), test_locale_ca)) == "en_US.utf8"
-
-COLL_TESTS_C = [
-    ( "a", "b", -1 ),
-    ( "A", "b", -1 ),
-    ( "a", "B", +1 ),
+COLL_C = [
+    ("a", "b", -1),
+    ("A", "b", -1),
+    ("a", "B", +1),
 ]
 
-COLL_TESTS_FR = [
-    ( "a", "b", -1 ),
-    ( "A", "b", -1 ),
-    ( "a", "B", -1 ),
+COLL_en = [
+    ("a", "b", -1),
+    ("A", "b", -1),
+    ("a", "B", -1),
 ]
 
-@testset "string comparisons '$a' ~ '$b'" for (a, b, r) in COLL_TESTS_C
-    @test sign(strcoll_c(a, b, test_locale_C)) == r
-end
+@testset "C-locale for $loc" for (loc, COLL) in (("C", COLL_C), ("en_US.utf8", COLL_en))
+    test_locale = newlocale_c(LC._MASK_ALL, loc, P0)
+    if test_locale != P0
+        @test duplocale(test_locale) != P0
+        @test unsafe_string(nl_langinfo_c(Cint(0xffff), test_locale)) == loc
 
-@testset "string comparisons '$a' ~ '$b'" for (a, b, r) in COLL_TESTS_FR
-    @test sign(strcoll_c(a, b, test_locale_ca)) == r
-end
+        @testset "string comparisons '$a' ~ '$b'" for (a, b, r) in COLL
+            @test sign(strcoll_c(a, b, test_locale)) == r
+        end
 
-@test freelocale(test_locale_ca) == nothing
-freelocale(test_locale_C)
+        @test freelocale(test_locale) === nothing
+    else
+        @info "no C-locale defined for '$loc'"
+    end
 end
 #################################
